@@ -413,12 +413,10 @@ app.get('/api/autopilot/config', (req, res) => {
   // Reload .env so manual edits in .env are picked up immediately
   require('dotenv').config({ override: true });
   const config = getConfig();
-  const key = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
   const scheduleInfo = getScheduleInfo(config.schedule, config);
   res.json({
     config,
     scheduleInfo,
-    hasGeminiKey: !!(key && key !== 'your_gemini_api_key_here'),
     isBusy: isBusy()
   });
 });
@@ -448,31 +446,6 @@ app.post('/api/autopilot/config', (req, res) => {
     res.json({ ok: true, config: updated, scheduleInfo });
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-// Save Gemini API Key directly to environment and .env file
-app.post('/api/autopilot/save-key', (req, res) => {
-  const { apiKey } = req.body;
-  if (!apiKey || !apiKey.trim()) {
-    return res.status(400).json({ error: 'API key cannot be empty' });
-  }
-
-  process.env.GEMINI_API_KEY = apiKey.trim();
-
-  // Persist to .env
-  const envPath = path.join(__dirname, '.env');
-  try {
-    let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
-    if (envContent.includes('GEMINI_API_KEY=')) {
-      envContent = envContent.replace(/GEMINI_API_KEY=.*(\r?\n|$)/, `GEMINI_API_KEY=${apiKey.trim()}$1`);
-    } else {
-      envContent += `\nGEMINI_API_KEY=${apiKey.trim()}\n`;
-    }
-    fs.writeFileSync(envPath, envContent);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to write to .env: ' + err.message });
   }
 });
 

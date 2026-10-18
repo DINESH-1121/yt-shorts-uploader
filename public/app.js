@@ -282,23 +282,33 @@ async function generateAIMetadata() {
 
 // ── Auto-Pilot Pro Controls ──────────────────────────────────────────────
 
+// Acronyms that should keep their canonical casing in model labels.
+const MODEL_ACRONYMS = { glm: 'GLM', mimo: 'MiMo', deepseek: 'DeepSeek', ai: 'AI', vl: 'VL', gpt: 'GPT', llm: 'LLM' };
+
 function getModelLabel(modelName) {
   if (!modelName) return 'AI (Free Tier)';
   // OpenCode refs look like "opencode/glm-5.3-flash-free" → "GLM-5.3-Flash Free"
-  const short = modelName.split('/').pop().replace(/-free$/, '') + (modelName.includes('-free') ? ' Free' : '');
-  return short
+  const isFree = modelName.includes('-free');
+  const short = modelName.split('/').pop().replace(/-free$/, '');
+  const pretty = short
     .split('-')
     .filter(Boolean)
-    .map((part) => (/^\d/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .map((part) => {
+      const lower = part.toLowerCase();
+      if (MODEL_ACRONYMS[lower]) return MODEL_ACRONYMS[lower];
+      if (/^\d/.test(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
     .join('-');
+  return isFree ? `${pretty} Free` : pretty;
 }
 
 /**
- * Populates the AI model dropdown from the gateway's live discovery endpoint
- * and reports gateway health in the card badge.
+ * Populates the AI model dropdown from the gateway's live discovery endpoint.
+ * Returns the fetched payload so callers can reuse it for the health badge.
  */
 async function refreshModelList() {
-  if (!autoModel) return;
+  if (!autoModel) return null;
   try {
     const res = await fetch('/api/ai/models');
     const data = await res.json();
@@ -313,9 +323,14 @@ async function refreshModelList() {
       }
       if (data.models.some((m) => m.id === selected)) autoModel.value = selected;
       if (statModel) statModel.textContent = getModelLabel(selected);
+    } else {
+      autoModel.innerHTML = '<option value="opencode/glm-5.3-flash-free">No free models available</option>';
     }
+    return data;
   } catch (err) {
     console.warn('Could not refresh AI model list:', err.message);
+    autoModel.innerHTML = '<option value="opencode/glm-5.3-flash-free">Could not reach AI gateway</option>';
+    return null;
   }
 }
 
@@ -597,17 +612,14 @@ async function loadAutoPilotConfig() {
       statAutopilotStatus.style.color = isEnabled ? 'var(--success)' : 'inherit';
     }
 
-    // Model selection
+    // Model selection + gateway health (single fetch, reused for both)
     const activeModel = autopilotConfig.geminiModel || 'opencode/glm-5.3-flash-free';
-    await refreshModelList();
+    const modelsData = await refreshModelList();
     if (autoModel) autoModel.value = activeModel;
     if (statModel) statModel.textContent = getModelLabel(activeModel);
 
-    // Free-model gateway health badge
-    try {
-      const modelsRes = await fetch('/api/ai/models');
-      const modelsData = await modelsRes.json();
-      const healthyCount = modelsData.ok ? modelsData.models.filter((m) => m.healthy).length : 0;
+    if (modelsData?.ok) {
+      const healthyCount = modelsData.models.filter((m) => m.healthy).length;
       if (healthyCount > 0) {
         geminiBadge.textContent = `Active (${healthyCount} Free)`;
         geminiBadge.className = 'pill-badge pill-on';
@@ -617,7 +629,7 @@ async function loadAutoPilotConfig() {
         geminiBadge.className = 'pill-badge pill-off';
         geminiStatusText.textContent = 'No healthy AI model right now — heuristic mode is used until one recovers.';
       }
-    } catch {
+    } else {
       geminiBadge.textContent = 'Offline';
       geminiBadge.className = 'pill-badge pill-off';
       geminiStatusText.textContent = 'Could not reach the AI gateway (is the OpenCode service running?).';
