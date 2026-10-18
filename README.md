@@ -44,8 +44,13 @@ This application links together video extraction tooling, cloud authentication, 
 * Uploads metadata including title, description, category ID (`22` - People & Blogs), and privacy status (`private`, `unlisted`, or `public`).
 * Tracks bytes transferred and dispatches real-time upload progress to the browser.
 
-### 5. Ephemeral File Lifecycle & Security
-* To prevent disk bloat and respect storage boundaries, the server deletes the staged video file (`fs.unlinkSync`) inside a `finally` block immediately after the upload completes or fails.
+### 5. Strict 9:16 Shorts Video Format Enforcement
+* **Automatic Aspect Ratio Formatting**: Every video is analyzed via `ffprobe`. If a source clip is horizontal ($width > height$), `ffmpeg` automatically converts it into a high-aesthetic **vertical 9:16 (1080x1920)** YouTube Short with centered foreground and ambient blurred background framing.
+* **Duration Clamping**: Strictly enforces YouTube's 60-second limit by capping duration to $\le 59.5$ seconds so the upload is guaranteed to be classified by YouTube as a Short.
+* **Categorization & SEO**: Automatically sets category ID to Gaming (`20`) or People & Blogs (`22`) and adds `#Shorts` tags in title and description to guarantee immediate placement in the vertical Shorts shelf.
+
+### 6. Ephemeral File Lifecycle & Security
+* To prevent disk bloat and respect storage boundaries, the server deletes staged video files (`fs.unlinkSync`) inside a `finally` block immediately after upload completes or fails.
 * All credentials (`.env`) and session tokens (`tokens.json`) are stored strictly on your local machine and excluded from source control.
 
 ---

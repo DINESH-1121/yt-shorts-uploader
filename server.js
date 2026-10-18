@@ -13,6 +13,7 @@ const { getConfig, saveConfig, getHistory } = require('./lib/store');
 const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
 const { rewriteSingleVideoMetadata } = require('./lib/aiEngine');
 const { getScheduleInfo, buildCronFromCadence } = require('./lib/cadence');
+const { ensureShortsFormat } = require('./lib/shortsFormatter');
 
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
@@ -244,14 +245,15 @@ async function uploadToYouTube(filePath, metadata, onProgress) {
 
   onProgress?.('Uploading to YouTube...');
 
-  const res = await youtube.videos.insert({
-    part: 'snippet,status',
-    requestBody: {
-      snippet: {
-        title: metadata.title.substring(0, 100),
-        description: metadata.description || '',
-        categoryId: '22', // People & Blogs
-      },
+    const isGaming = /gta|game|gaming|gameplay|clutch|ps5|xbox|unreal|valorant|minecraft|cod|fortnite|wukong|esports/i.test(`${metadata.title} ${metadata.description || ''}`);
+    const res = await youtube.videos.insert({
+      part: 'snippet,status',
+      requestBody: {
+        snippet: {
+          title: metadata.title.substring(0, 100),
+          description: metadata.description || '',
+          categoryId: isGaming ? '20' : '22',
+        },
       status: {
         privacyStatus: metadata.privacy || 'private',
         selfDeclaredMadeForKids: false,
@@ -353,8 +355,15 @@ app.get('/api/upload', async (req, res) => {
 
     sendEvent('progress', { message: `Optimized Title: "${uploadMetadata.title}"` });
 
-    // Step 2: Upload
-    const result = await uploadToYouTube(filePath, uploadMetadata, (msg) => {
+    // Step 2: Ensure Strict 9:16 Vertical Shorts Format (Duration <= 60s)
+    sendEvent('progress', { message: '🎨 Verifying video format for YouTube Shorts (9:16 vertical, <= 60s)...' });
+    const finalShortPath = await ensureShortsFormat(filePath, (fmtMsg) => {
+      sendEvent('progress', { message: fmtMsg });
+    });
+    downloadedFile = finalShortPath;
+
+    // Step 3: Upload to YouTube
+    const result = await uploadToYouTube(finalShortPath, uploadMetadata, (msg) => {
       sendEvent('progress', { message: msg });
     });
 
