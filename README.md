@@ -9,14 +9,34 @@ Download YouTube Shorts or Instagram Reels and upload them directly to your YouT
 All AI tasks (candidate selection, viral title/description rewriting, trend-query generation) run through `lib/aiClient.js`, a dynamic gateway built on **OpenCode's free models**:
 
 * **Dynamic discovery** — the free-model list is pulled live from the OpenCode service (`opencode api get /api/model`). Every model with a `-free` id is a candidate, so new free models OpenCode ships are picked up automatically (cached for 5 minutes, falls back to a built-in preference list offline).
-* **Automatic failover** — if the preferred model errors, times out, or returns unparseable output, it is marked unhealthy with an escalating cooldown (3 → 6 → 12 min, cap 30) and the next best free model is tried until one succeeds. A failed model is never retried back-to-back.
+* **Automatic failover** — if the preferred model errors, times out, or returns unparseable output, it is marked unhealthy with an escalating cooldown (3 → 6 → 12 min, cap 30) and the next best free model is tried until one succeeds. A failed model is never retried back-to-back. Each attempt is capped at **60 s** and the whole chain at **180 s**, so a total outage degrades to the heuristic path in ~3 minutes instead of hanging.
 * **Task-aware ordering** — fast flash-class models (GLM/MiMo/DeepSeek Free) serve metadata & trend-query tasks first; deeper reasoning-class models (Nemotron Ultra) rank higher for candidate selection.
 * **No API keys needed** — the free tier is consumed through the OpenCode CLI (`opencode run --model provider/model --format json`), which must therefore be installed and the `opencode` service running.
+* **Session hygiene** — each call runs in a throwaway OpenCode session that is deleted afterwards, so the project's session list does not grow one entry per AI run. Set `AI_KEEP_SESSIONS=1` to keep them for debugging.
 * **Guaranteed output** — `generateJSON` tolerates markdown fences and surrounding prose; if every model fails, the engine degrades gracefully to the built-in heuristic scoring (keyword-based selection + canned hashtags) so uploads never block.
 
 The preferred model is configurable in the web UI (Auto-Pilot card, models listed live via `GET /api/ai/models`) and stored as `geminiModel` in `autopilot-config.json` (field name kept for backward compatibility; values are now `opencode/...-free` refs).
 
+### Cycle performance
+
+A cycle only needs **one** model call: generated trend queries are cached in `trend-queries.json` for 6 hours (`TREND_CACHE_HOURS` to change, `forceRefresh` to bypass), so the expensive part is candidate selection. On top of that, configured sources are scanned concurrently with trend discovery, source scans run in a worker pool (`SCAN_CONCURRENCY`, default 3), and the 9:16 transcode uses the x264 `fast` preset with `+faststart` (CRF 18 quality is unchanged). Native-vertical clips under 60 s skip transcoding entirely.
+
+### Tuning (environment variables)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AI_KEEP_SESSIONS` | unset | Keep throwaway AI sessions for debugging |
+| `TREND_CACHE_HOURS` | `6` | Trend-query cache TTL (`0` disables caching) |
+| `SCAN_CONCURRENCY` | `3` | Parallel source scans (max 4) |
+| `FFMPEG_PATH` / `FFPROBE_PATH` | auto | Override the resolved ffmpeg/ffprobe binaries |
+
 To smoke-test the gateway: `node smoke-test-ai.js`.
+
+### Troubleshooting
+
+* **`[AIClient] Discovery failed ...`** — the OpenCode service isn't reachable; the client falls back to its built-in model list. Check `opencode service status`.
+* **Every model cools down ("All OpenCode free models failed")** — quota/outage. Uploads continue in heuristic mode; check the Auto-Pilot terminal log for the reported upstream error.
+* **Auto-Pilot logs "cycle is already in progress"** — a cycle is still running; the warning is surfaced at most once per 5 minutes. The minimum cadence is 15 minutes because a full cycle takes minutes.
 
 ---
 
