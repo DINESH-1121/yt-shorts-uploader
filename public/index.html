@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YouTube Shorts Uploader</title>
+  <title>YouTube Shorts Uploader &amp; AI Auto-Pilot</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -16,7 +16,10 @@
         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="5 3 19 12 5 21 5 3" fill="#ff0033" stroke="#ff0033"/>
         </svg>
-        <h1>Shorts Uploader</h1>
+        <div>
+          <h1>Shorts Studio</h1>
+          <span class="sub-badge">Auto-Pilot &amp; Uploader</span>
+        </div>
       </div>
       <div id="auth-section">
         <button id="btn-connect" class="btn btn-connect" onclick="connectYouTube()">
@@ -29,95 +32,226 @@
       </div>
     </header>
 
-    <!-- Main Form -->
-    <main>
-      <div id="upload-form" class="card">
-        <h2>Upload a Short</h2>
-        <p class="subtitle">Paste a YouTube Shorts or Instagram Reels URL</p>
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" id="tab-btn-manual" onclick="switchTab('manual')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Manual Upload
+      </button>
+      <button class="tab-btn" id="tab-btn-autopilot" onclick="switchTab('autopilot')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+        </svg>
+        🤖 AI Auto-Pilot
+        <span id="autopilot-indicator" class="pill-badge pill-off">OFF</span>
+      </button>
+    </nav>
 
-        <div class="form-group">
-          <label for="video-url">Video URL</label>
-          <input
-            type="url"
-            id="video-url"
-            placeholder="https://youtube.com/shorts/... or https://instagram.com/reel/..."
-            autocomplete="off"
-          />
+    <!-- Main Views -->
+    <main>
+      <!-- VIEW 1: Manual Upload -->
+      <section id="view-manual" class="view-panel">
+        <div id="upload-form" class="card">
+          <h2>Upload a Short</h2>
+          <p class="subtitle">Paste a YouTube Shorts or Instagram Reels URL</p>
+
+          <div class="form-group">
+            <label for="video-url">Video URL</label>
+            <input
+              type="url"
+              id="video-url"
+              placeholder="https://youtube.com/shorts/... or https://instagram.com/reel/..."
+              autocomplete="off"
+            />
+          </div>
+
+          <details class="options-toggle">
+            <summary>Upload Options</summary>
+            <div class="options-body">
+              <div class="form-group">
+                <label for="video-title">Title (optional — auto-detected if blank)</label>
+                <input type="text" id="video-title" placeholder="My awesome short" maxlength="100" />
+              </div>
+              <div class="form-group">
+                <label for="video-desc">Description (optional)</label>
+                <textarea id="video-desc" rows="3" placeholder="Add a description..."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="video-privacy">Privacy</label>
+                <select id="video-privacy">
+                  <option value="private">Private</option>
+                  <option value="unlisted">Unlisted</option>
+                  <option value="public">Public</option>
+                </select>
+              </div>
+            </div>
+          </details>
+
+          <button id="btn-upload" class="btn btn-primary" onclick="startUpload()">
+            <span class="btn-text">Download &amp; Upload</span>
+            <span class="btn-loading hidden">
+              <span class="spinner"></span> Processing...
+            </span>
+          </button>
         </div>
 
-        <details class="options-toggle">
-          <summary>Upload Options</summary>
-          <div class="options-body">
+        <!-- Progress Section -->
+        <div id="progress-section" class="card hidden">
+          <h3>Progress</h3>
+          <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
+          <p id="progress-text" class="progress-text">Starting...</p>
+          <div id="progress-log" class="progress-log"></div>
+        </div>
+
+        <!-- Result Section -->
+        <div id="result-section" class="card hidden">
+          <div class="result-success">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#22c55e" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 12l3 3 5-5" />
+            </svg>
+            <h3>Uploaded Successfully!</h3>
+            <a id="result-link" href="#" target="_blank" class="result-url"></a>
+            <button class="btn btn-secondary" onclick="resetForm()">Upload Another</button>
+          </div>
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="card hidden">
+          <div class="result-error">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ef4444" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M15 9l-6 6M9 9l6 6" />
+            </svg>
+            <h3>Upload Failed</h3>
+            <p id="error-text"></p>
+            <button class="btn btn-secondary" onclick="resetForm()">Try Again</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: Auto-Pilot Dashboard -->
+      <section id="view-autopilot" class="view-panel hidden">
+        <!-- Master Control Card -->
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <h2>Autonomous AI Mode</h2>
+              <p class="subtitle">AI selects top videos from your sources and automatically uploads on a schedule</p>
+            </div>
+            <div class="switch-container">
+              <label class="switch">
+                <input type="checkbox" id="autopilot-toggle" onchange="toggleAutoPilot(this.checked)" />
+                <span class="slider"></span>
+              </label>
+              <span id="toggle-label" class="status-text">OFF</span>
+            </div>
+          </div>
+
+          <div class="autopilot-actions">
+            <button id="btn-run-autopilot" class="btn btn-accent" onclick="runAutoPilotNow()">
+              <span class="btn-text">⚡ Run Auto-Pilot Now</span>
+              <span class="btn-loading hidden">
+                <span class="spinner"></span> AI Working...
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gemini API Key Setup -->
+        <div class="card" id="gemini-card">
+          <div class="flex-between">
+            <div>
+              <h3>🧠 Google Gemini AI</h3>
+              <p class="subtitle" id="gemini-status-text">Checking status...</p>
+            </div>
+            <span id="gemini-badge" class="pill-badge pill-off">Not Configured</span>
+          </div>
+          <div class="form-row" id="gemini-input-row">
+            <input type="password" id="gemini-api-key" placeholder="Enter Gemini API Key (AI Studio)" />
+            <button class="btn btn-secondary" onclick="saveGeminiKey()">Save Key</button>
+          </div>
+        </div>
+
+        <!-- Schedule & Upload Settings -->
+        <div class="card">
+          <h3>⚙️ Schedule &amp; Target Preferences</h3>
+          <div class="grid-2">
             <div class="form-group">
-              <label for="video-title">Title (optional — auto-detected if blank)</label>
-              <input type="text" id="video-title" placeholder="My awesome short" maxlength="100" />
+              <label for="auto-schedule">Upload Cadence</label>
+              <select id="auto-schedule" onchange="updateSettings()">
+                <option value="0 */6 * * *">Every 6 Hours</option>
+                <option value="0 */12 * * *">Every 12 Hours (Twice daily)</option>
+                <option value="0 9 * * *">Once Daily (9:00 AM)</option>
+                <option value="0 18 * * *">Once Daily (6:00 PM)</option>
+                <option value="*/30 * * * *">Every 30 Minutes (Testing)</option>
+              </select>
             </div>
             <div class="form-group">
-              <label for="video-desc">Description (optional)</label>
-              <textarea id="video-desc" rows="3" placeholder="Add a description..."></textarea>
-            </div>
-            <div class="form-group">
-              <label for="video-privacy">Privacy</label>
-              <select id="video-privacy">
-                <option value="private">Private</option>
+              <label for="auto-privacy">Publish Privacy</label>
+              <select id="auto-privacy" onchange="updateSettings()">
+                <option value="private">Private (Recommended for Review)</option>
                 <option value="unlisted">Unlisted</option>
-                <option value="public">Public</option>
+                <option value="public">Public (Direct publish)</option>
               </select>
             </div>
           </div>
-        </details>
-
-        <button id="btn-upload" class="btn btn-primary" onclick="startUpload()">
-          <span class="btn-text">Download &amp; Upload</span>
-          <span class="btn-loading hidden">
-            <span class="spinner"></span> Processing...
-          </span>
-        </button>
-      </div>
-
-      <!-- Progress Section -->
-      <div id="progress-section" class="card hidden">
-        <h3>Progress</h3>
-        <div class="progress-bar-container">
-          <div id="progress-bar" class="progress-bar"></div>
         </div>
-        <p id="progress-text" class="progress-text">Starting...</p>
-        <div id="progress-log" class="progress-log"></div>
-      </div>
 
-      <!-- Result Section -->
-      <div id="result-section" class="card hidden">
-        <div class="result-success">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#22c55e" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M8 12l3 3 5-5" />
-          </svg>
-          <h3>Uploaded Successfully!</h3>
-          <a id="result-link" href="#" target="_blank" class="result-url"></a>
-          <button class="btn btn-secondary" onclick="resetForm()">Upload Another</button>
-        </div>
-      </div>
+        <!-- Sources Manager Card -->
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <h3>🎯 Target Channels &amp; Topics</h3>
+              <p class="subtitle">AI scans these accounts/keywords for fresh shorts</p>
+            </div>
+          </div>
 
-      <!-- Error Section -->
-      <div id="error-section" class="card hidden">
-        <div class="result-error">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ef4444" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M15 9l-6 6M9 9l6 6" />
-          </svg>
-          <h3>Upload Failed</h3>
-          <p id="error-text"></p>
-          <button class="btn btn-secondary" onclick="resetForm()">Try Again</button>
+          <div id="sources-list" class="sources-list">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="add-source-form">
+            <select id="new-source-type">
+              <option value="channel">YouTube Channel URL</option>
+              <option value="keyword">Topic / Keyword Search</option>
+            </select>
+            <input type="text" id="new-source-url" placeholder="e.g. https://www.youtube.com/@Channel/shorts or 'AI gadgets'" />
+            <button class="btn btn-secondary" onclick="addSource()">+ Add Source</button>
+          </div>
         </div>
-      </div>
+
+        <!-- Auto-Pilot Live Log -->
+        <div class="card">
+          <h3>📡 Auto-Pilot Terminal</h3>
+          <div id="autopilot-log" class="progress-log terminal-log">
+            <div class="log-entry log-dim">System initialized. Awaiting scheduled trigger or manual execution.</div>
+          </div>
+        </div>
+
+        <!-- Upload History -->
+        <div class="card">
+          <h3>📜 Uploaded History</h3>
+          <p class="subtitle">All videos curated and uploaded by the system (deduplication protected)</p>
+          <div id="history-container" class="history-list">
+            <div class="empty-state">No automated uploads yet.</div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer>
-      <p>Videos are downloaded temporarily and deleted after upload.</p>
+      <p>Videos are processed ephemerally and uploaded through official Google YouTube Data API v3.</p>
     </footer>
   </div>
 
   <script src="app.js"></script>
 </body>
 </html>
-
