@@ -4,6 +4,22 @@ Download YouTube Shorts or Instagram Reels and upload them directly to your YouT
 
 ---
 
+## 🧠 AI Engine (OpenCode Free Tier)
+
+All AI tasks (candidate selection, viral title/description rewriting, trend-query generation) run through `lib/aiClient.js`, a dynamic gateway built on **OpenCode's free models**:
+
+* **Dynamic discovery** — the free-model list is pulled live from the OpenCode service (`opencode api get /api/model`). Every model with a `-free` id is a candidate, so new free models OpenCode ships are picked up automatically (cached for 5 minutes, falls back to a built-in preference list offline).
+* **Automatic failover** — if the preferred model errors, times out, or returns unparseable output, it is marked unhealthy with an escalating cooldown (3 → 6 → 12 min, cap 30) and the next best free model is tried until one succeeds. A failed model is never retried back-to-back.
+* **Task-aware ordering** — fast flash-class models (GLM/MiMo/DeepSeek Free) serve metadata & trend-query tasks first; deeper reasoning-class models (Nemotron Ultra) rank higher for candidate selection.
+* **No API keys needed** — the free tier is consumed through the OpenCode CLI (`opencode run --model provider/model --format json`), which must therefore be installed and the `opencode` service running.
+* **Guaranteed output** — `generateJSON` tolerates markdown fences and surrounding prose; if every model fails, the engine degrades gracefully to the built-in heuristic scoring (keyword-based selection + canned hashtags) so uploads never block.
+
+The preferred model is configurable in the web UI (Auto-Pilot card, models listed live via `GET /api/ai/models`) and stored as `geminiModel` in `autopilot-config.json` (field name kept for backward compatibility; values are now `opencode/...-free` refs).
+
+To smoke-test the gateway: `node smoke-test-ai.js`.
+
+---
+
 ## 🛠️ How It Works (How We Achieve This)
 
 This application links together video extraction tooling, cloud authentication, and streaming protocols to download and publish videos directly to YouTube without manual file handling.

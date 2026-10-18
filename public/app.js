@@ -30,7 +30,6 @@ const btnRunText = btnRunAutopilot.querySelector('.btn-text');
 const btnRunLoading = btnRunAutopilot.querySelector('.btn-loading');
 const geminiBadge = document.getElementById('gemini-badge');
 const geminiStatusText = document.getElementById('gemini-status-text');
-const geminiApiKeyInput = document.getElementById('gemini-api-key');
 const autoModel = document.getElementById('auto-model');
 const autoSchedule = document.getElementById('auto-schedule');
 const autoPrivacy = document.getElementById('auto-privacy');
@@ -284,13 +283,40 @@ async function generateAIMetadata() {
 // ── Auto-Pilot Pro Controls ──────────────────────────────────────────────
 
 function getModelLabel(modelName) {
-  if (modelName === 'gemini-3.8-flash') return 'Gemini 3.8 Flash';
-  if (modelName === 'gemini-3.1-pro-preview') return 'Gemini 3.1 Pro';
-  if (modelName === 'gemini-flash-latest') return 'Gemini Flash Latest';
-  if (modelName === 'gemini-pro-latest') return 'Gemini Pro Latest';
-  if (modelName === 'gemini-2.5-pro') return 'Gemini 3.1 Pro';
-  if (modelName === 'gemini-2.5-flash') return 'Gemini 3.8 Flash';
-  return 'Gemini AI';
+  if (!modelName) return 'AI (Free Tier)';
+  // OpenCode refs look like "opencode/glm-5.3-flash-free" → "GLM-5.3-Flash Free"
+  const short = modelName.split('/').pop().replace(/-free$/, '') + (modelName.includes('-free') ? ' Free' : '');
+  return short
+    .split('-')
+    .filter(Boolean)
+    .map((part) => (/^\d/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join('-');
+}
+
+/**
+ * Populates the AI model dropdown from the gateway's live discovery endpoint
+ * and reports gateway health in the card badge.
+ */
+async function refreshModelList() {
+  if (!autoModel) return;
+  try {
+    const res = await fetch('/api/ai/models');
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.models) && data.models.length > 0) {
+      const selected = data.configured || autoModel.value;
+      autoModel.innerHTML = '';
+      for (const m of data.models) {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = `${getModelLabel(m.id)}${m.healthy ? '' : ' (cooling down — auto-used as last resort)'}`;
+        autoModel.appendChild(option);
+      }
+      if (data.models.some((m) => m.id === selected)) autoModel.value = selected;
+      if (statModel) statModel.textContent = getModelLabel(selected);
+    }
+  } catch (err) {
+    console.warn('Could not refresh AI model list:', err.message);
+  }
 }
 
 // ── Dynamic Cadence Studio State & Logic ─────────────────────────────────
@@ -572,19 +598,29 @@ async function loadAutoPilotConfig() {
     }
 
     // Model selection
-    const activeModel = autopilotConfig.geminiModel || 'gemini-3.8-flash';
+    const activeModel = autopilotConfig.geminiModel || 'opencode/glm-5.3-flash-free';
+    await refreshModelList();
     if (autoModel) autoModel.value = activeModel;
     if (statModel) statModel.textContent = getModelLabel(activeModel);
 
-    // Gemini API status badge
-    if (data.hasGeminiKey) {
-      geminiBadge.textContent = 'Active (Pro)';
-      geminiBadge.className = 'pill-badge pill-on';
-      geminiStatusText.textContent = `${getModelLabel(activeModel)} Flagship model connected and ready.`;
-    } else {
-      geminiBadge.textContent = 'Key Needed';
+    // Free-model gateway health badge
+    try {
+      const modelsRes = await fetch('/api/ai/models');
+      const modelsData = await modelsRes.json();
+      const healthyCount = modelsData.ok ? modelsData.models.filter((m) => m.healthy).length : 0;
+      if (healthyCount > 0) {
+        geminiBadge.textContent = `Active (${healthyCount} Free)`;
+        geminiBadge.className = 'pill-badge pill-on';
+        geminiStatusText.textContent = `${healthyCount} free model(s) ready. Failed models switch automatically via fallback chain.`;
+      } else {
+        geminiBadge.textContent = 'Degraded';
+        geminiBadge.className = 'pill-badge pill-off';
+        geminiStatusText.textContent = 'No healthy AI model right now — heuristic mode is used until one recovers.';
+      }
+    } catch {
+      geminiBadge.textContent = 'Offline';
       geminiBadge.className = 'pill-badge pill-off';
-      geminiStatusText.textContent = 'Add your Google Gemini API key to unlock deep Pro reasoning.';
+      geminiStatusText.textContent = 'Could not reach the AI gateway (is the OpenCode service running?).';
     }
 
     // Initialize Cadence Studio
@@ -739,33 +775,6 @@ async function deleteSource(idx) {
   await saveAutoPilotConfig();
   if (removed[0]) {
     addTerminalLog(`Removed source: "${removed[0].name || removed[0].url}"`);
-  }
-}
-
-async function saveGeminiKey() {
-  const key = geminiApiKeyInput.value.trim();
-  if (!key) {
-    alert('Please enter a valid Gemini API Key');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/autopilot/save-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: key })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      geminiApiKeyInput.value = '';
-      alert('Gemini API key saved to .env and activated successfully!');
-      loadAutoPilotConfig();
-      addTerminalLog('Google Gemini Pro API key connected and verified.');
-    } else {
-      alert('Error saving key: ' + (data.error || 'Unknown error'));
-    }
-  } catch (err) {
-    alert('Failed to save API key: ' + err.message);
   }
 }
 

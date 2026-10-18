@@ -11,7 +11,8 @@ const PORT = process.env.PORT || 3000;
 // ── Auto-Pilot Modules ──────────────────────────────────────────────────
 const { getConfig, saveConfig, getHistory } = require('./lib/store');
 const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
-const { rewriteSingleVideoMetadata } = require('./lib/aiEngine');
+const { rewriteSingleVideoMetadata, normalizeModelName } = require('./lib/aiEngine');
+const { listFreeModels } = require('./lib/aiClient');
 const { getScheduleInfo, buildCronFromCadence } = require('./lib/cadence');
 const { ensureShortsFormat } = require('./lib/shortsFormatter');
 
@@ -337,8 +338,8 @@ app.get('/api/upload', async (req, res) => {
       try {
         const aiEnhanced = await rewriteSingleVideoMetadata(
           metadata,
-          process.env.GEMINI_API_KEY,
-          config.geminiModel || 'gemini-3.8-flash'
+          null, // gateway needs no API key; free-model chain includes automatic fallbacks
+          normalizeModelName(config.geminiModel || 'opencode/glm-5.3-flash-free')
         );
         if (!finalTitle) finalTitle = aiEnhanced.optimizedTitle;
         if (!finalDescription) finalDescription = aiEnhanced.optimizedDescription;
@@ -391,6 +392,21 @@ app.get('/api/upload', async (req, res) => {
 });
 
 // ── Auto-Pilot API Routes ────────────────────────────────────────────────
+
+// List available OpenCode free models (dynamic discovery + health status) for the UI
+app.get('/api/ai/models', async (req, res) => {
+  try {
+    const models = await listFreeModels('metadata');
+    const config = getConfig();
+    res.json({
+      ok: true,
+      models,
+      configured: normalizeModelName(config.geminiModel)
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // Get Auto-Pilot configuration & status
 app.get('/api/autopilot/config', (req, res) => {
@@ -536,8 +552,8 @@ app.post('/api/ai/preview-metadata', async (req, res) => {
     try {
       const enhanced = await rewriteSingleVideoMetadata(
         { title: originalTitle, uploader, description: originalDesc },
-        process.env.GEMINI_API_KEY,
-        config.geminiModel || 'gemini-3.8-flash'
+        null, // gateway needs no API key; free-model chain includes automatic fallbacks
+        normalizeModelName(config.geminiModel || 'opencode/glm-5.3-flash-free')
       );
 
       res.json({
