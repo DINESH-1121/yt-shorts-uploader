@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Shorts Uploader</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3" fill="#ff0033" stroke="#ff0033"/>
+        </svg>
+        <h1>Shorts Uploader</h1>
+      </div>
+      <div id="auth-section">
+        <button id="btn-connect" class="btn btn-connect" onclick="connectYouTube()">
+          Connect YouTube
+        </button>
+        <div id="connected-badge" class="connected-badge hidden">
+          <span class="dot"></span> Connected
+          <button class="btn-disconnect" onclick="disconnect()">Disconnect</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Form -->
+    <main>
+      <div id="upload-form" class="card">
+        <h2>Upload a Short</h2>
+        <p class="subtitle">Paste a YouTube Shorts or Instagram Reels URL</p>
+
+        <div class="form-group">
+          <label for="video-url">Video URL</label>
+          <input
+            type="url"
+            id="video-url"
+            placeholder="https://youtube.com/shorts/... or https://instagram.com/reel/..."
+            autocomplete="off"
+          />
+        </div>
+
+        <details class="options-toggle">
+          <summary>Upload Options</summary>
+          <div class="options-body">
+            <div class="form-group">
+              <label for="video-title">Title (optional — auto-detected if blank)</label>
+              <input type="text" id="video-title" placeholder="My awesome short" maxlength="100" />
+            </div>
+            <div class="form-group">
+              <label for="video-desc">Description (optional)</label>
+              <textarea id="video-desc" rows="3" placeholder="Add a description..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="video-privacy">Privacy</label>
+              <select id="video-privacy">
+                <option value="private">Private</option>
+                <option value="unlisted">Unlisted</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <button id="btn-upload" class="btn btn-primary" onclick="startUpload()">
+          <span class="btn-text">Download &amp; Upload</span>
+          <span class="btn-loading hidden">
+            <span class="spinner"></span> Processing...
+          </span>
+        </button>
+      </div>
+
+      <!-- Progress Section -->
+      <div id="progress-section" class="card hidden">
+        <h3>Progress</h3>
+        <div class="progress-bar-container">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p id="progress-text" class="progress-text">Starting...</p>
+        <div id="progress-log" class="progress-log"></div>
+      </div>
+
+      <!-- Result Section -->
+      <div id="result-section" class="card hidden">
+        <div class="result-success">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#22c55e" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 12l3 3 5-5" />
+          </svg>
+          <h3>Uploaded Successfully!</h3>
+          <a id="result-link" href="#" target="_blank" class="result-url"></a>
+          <button class="btn btn-secondary" onclick="resetForm()">Upload Another</button>
+        </div>
+      </div>
+
+      <!-- Error Section -->
+      <div id="error-section" class="card hidden">
+        <div class="result-error">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M15 9l-6 6M9 9l6 6" />
+          </svg>
+          <h3>Upload Failed</h3>
+          <p id="error-text"></p>
+          <button class="btn btn-secondary" onclick="resetForm()">Try Again</button>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Videos are downloaded temporarily and deleted after upload.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
