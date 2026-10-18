@@ -284,10 +284,13 @@ async function generateAIMetadata() {
 // ── Auto-Pilot Pro Controls ──────────────────────────────────────────────
 
 function getModelLabel(modelName) {
-  if (modelName === 'gemini-2.5-pro') return 'Gemini 2.5 Pro';
-  if (modelName === 'gemini-1.5-pro') return 'Gemini 1.5 Pro';
-  if (modelName === 'gemini-2.5-flash') return 'Gemini 2.5 Flash';
-  return 'Gemini 2.5 Pro';
+  if (modelName === 'gemini-3.8-flash') return 'Gemini 3.8 Flash';
+  if (modelName === 'gemini-3.1-pro-preview') return 'Gemini 3.1 Pro';
+  if (modelName === 'gemini-flash-latest') return 'Gemini Flash Latest';
+  if (modelName === 'gemini-pro-latest') return 'Gemini Pro Latest';
+  if (modelName === 'gemini-2.5-pro') return 'Gemini 3.1 Pro';
+  if (modelName === 'gemini-2.5-flash') return 'Gemini 3.8 Flash';
+  return 'Gemini AI';
 }
 
 async function loadAutoPilotConfig() {

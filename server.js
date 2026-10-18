@@ -333,7 +333,7 @@ app.get('/api/upload', async (req, res) => {
         const aiEnhanced = await rewriteSingleVideoMetadata(
           metadata,
           process.env.GEMINI_API_KEY,
-          config.geminiModel || 'gemini-2.5-pro'
+          config.geminiModel || 'gemini-3.8-flash'
         );
         if (!finalTitle) finalTitle = aiEnhanced.optimizedTitle;
         if (!finalDescription) finalDescription = aiEnhanced.optimizedDescription;
@@ -511,7 +511,7 @@ app.post('/api/ai/preview-metadata', async (req, res) => {
       const enhanced = await rewriteSingleVideoMetadata(
         { title: originalTitle, uploader, description: originalDesc },
         process.env.GEMINI_API_KEY,
-        config.geminiModel || 'gemini-2.5-pro'
+        config.geminiModel || 'gemini-3.8-flash'
       );
 
       res.json({
