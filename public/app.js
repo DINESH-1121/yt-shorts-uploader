@@ -240,6 +240,47 @@ function resetForm() {
   setUploading(false);
 }
 
+// ── AI Metadata Generator (Manual Upload) ────────────────────────────────
+async function generateAIMetadata() {
+  const url = document.getElementById('video-url').value.trim();
+  if (!url) {
+    alert('Please paste a video link first');
+    return;
+  }
+
+  const btn = document.getElementById('btn-ai-preview');
+  const btnTxt = btn.querySelector('.btn-text');
+  const btnLoad = btn.querySelector('.btn-loading');
+
+  btn.disabled = true;
+  btnTxt.classList.add('hidden');
+  btnLoad.classList.remove('hidden');
+
+  try {
+    const res = await fetch('/api/ai/preview-metadata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('video-title').value = data.optimizedTitle;
+      document.getElementById('video-desc').value = data.optimizedDescription;
+
+      const details = document.getElementById('manual-options-toggle');
+      if (details) details.open = true;
+    } else {
+      alert('AI Generation error: ' + (data.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Failed to connect to AI engine: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btnTxt.classList.remove('hidden');
+    btnLoad.classList.add('hidden');
+  }
+}
+
 // ── Auto-Pilot Pro Controls ──────────────────────────────────────────────
 
 function getModelLabel(modelName) {

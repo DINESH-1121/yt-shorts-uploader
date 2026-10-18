@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 3000;
 // ── Auto-Pilot Modules ──────────────────────────────────────────────────
 const { getConfig, saveConfig, getHistory } = require('./lib/store');
 const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
+const { rewriteSingleVideoMetadata } = require('./lib/aiEngine');
 
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
@@ -321,14 +322,35 @@ app.get('/api/upload', async (req, res) => {
     });
     downloadedFile = filePath;
 
-    // Apply custom title/description if provided
+    let finalTitle = title ? title.trim() : '';
+    let finalDescription = description ? description.trim() : '';
+
+    // If user did not manually supply both title and description, use AI Pro to generate them with 25-30 hashtags
+    if (!finalTitle || !finalDescription) {
+      sendEvent('progress', { message: '🧠 AI Pro rewriting viral title & generating 25-30 hashtags...' });
+      const config = getConfig();
+      try {
+        const aiEnhanced = await rewriteSingleVideoMetadata(
+          metadata,
+          process.env.GEMINI_API_KEY,
+          config.geminiModel || 'gemini-2.5-pro'
+        );
+        if (!finalTitle) finalTitle = aiEnhanced.optimizedTitle;
+        if (!finalDescription) finalDescription = aiEnhanced.optimizedDescription;
+      } catch (err) {
+        console.warn('AI enhancement fallback:', err.message);
+        if (!finalTitle) finalTitle = `${metadata.title} #Shorts #Gaming`;
+        if (!finalDescription) finalDescription = metadata.description || metadata.title;
+      }
+    }
+
     const uploadMetadata = {
-      title: title || metadata.title || 'Uploaded Video',
-      description: description || metadata.description || '',
+      title: finalTitle.substring(0, 100),
+      description: finalDescription,
       privacy,
     };
 
-    sendEvent('progress', { message: `Downloaded: "${uploadMetadata.title}"` });
+    sendEvent('progress', { message: `Optimized Title: "${uploadMetadata.title}"` });
 
     // Step 2: Upload
     const result = await uploadToYouTube(filePath, uploadMetadata, (msg) => {
@@ -453,6 +475,54 @@ app.get('/api/autopilot/run', (req, res) => {
   }).catch((err) => {
     sendEvent('error', { message: err.message });
     res.end();
+  });
+});
+
+// Preview AI title rewriting & 25-30 hashtags generation for a URL
+app.post('/api/ai/preview-metadata', async (req, res) => {
+  const { url } = req.body;
+  if (!url || !validateUrl(url)) {
+    return res.status(400).json({ error: 'A valid YouTube Shorts or Instagram Reels URL is required' });
+  }
+
+  require('dotenv').config({ override: true });
+
+  const metaArgs = [
+    '--no-warnings',
+    '--print', '%(title)s',
+    '--print', '%(uploader)s',
+    '--print', '%(description).300s',
+    '--no-playlist',
+    url
+  ];
+
+  execFile(YT_DLP, metaArgs, { timeout: 35000 }, async (err, stdout, stderr) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to extract video details: ' + (stderr || err.message) });
+    }
+
+    const lines = stdout.trim().split('\n');
+    const originalTitle = lines[0] || 'Viral Video';
+    const uploader = lines[1] || 'Creator';
+    const originalDesc = lines.slice(2).join('\n') || '';
+
+    const config = getConfig();
+    try {
+      const enhanced = await rewriteSingleVideoMetadata(
+        { title: originalTitle, uploader, description: originalDesc },
+        process.env.GEMINI_API_KEY,
+        config.geminiModel || 'gemini-2.5-pro'
+      );
+
+      res.json({
+        ok: true,
+        originalTitle,
+        optimizedTitle: enhanced.optimizedTitle,
+        optimizedDescription: enhanced.optimizedDescription
+      });
+    } catch (aiErr) {
+      res.status(500).json({ error: 'AI generation error: ' + aiErr.message });
+    }
   });
 });
 

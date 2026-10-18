@@ -126,23 +126,32 @@
                 required
               />
             </div>
+            <div class="url-action-row">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-ai-preview" onclick="generateAIMetadata()">
+                <span class="btn-text">✨ AI Generate Title &amp; 25-30 Hashtags</span>
+                <span class="btn-loading hidden">
+                  <span class="spinner"></span> Analyzing Video...
+                </span>
+              </button>
+              <span class="hint-text">Auto-generates viral title + 25-30 targeted hashtags</span>
+            </div>
           </div>
 
-          <details class="options-toggle">
+          <details class="options-toggle" id="manual-options-toggle">
             <summary>
-              <span>Custom Title &amp; Privacy Options</span>
+              <span>Custom Title &amp; Description (AI Enhanced)</span>
               <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
             </summary>
             <div class="options-body">
               <div class="form-group">
-                <label for="video-title">Custom Title (optional — auto-extracted if empty)</label>
-                <input type="text" id="video-title" placeholder="e.g. Insane GTA 6 Next-Gen Graphics #Shorts" maxlength="100" />
+                <label for="video-title">Title with Hashtags</label>
+                <input type="text" id="video-title" placeholder="e.g. Insane GTA 6 Next-Gen Graphics 🤯 #Shorts #Gaming" maxlength="100" />
               </div>
               <div class="form-group">
-                <label for="video-desc">Description &amp; Tags (optional)</label>
-                <textarea id="video-desc" rows="3" placeholder="Add custom description and hashtags..."></textarea>
+                <label for="video-desc">Detailed Description (with 25-30 Hashtags)</label>
+                <textarea id="video-desc" rows="6" placeholder="AI will generate a detailed description with 25-30 hashtags here..."></textarea>
               </div>
               <div class="form-group">
                 <label for="video-privacy">Publish Privacy</label>
