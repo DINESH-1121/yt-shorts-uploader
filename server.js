@@ -8,6 +8,10 @@ const { execFile, spawn } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Auto-Pilot Modules ──────────────────────────────────────────────────
+const { getConfig, saveConfig, getHistory } = require('./lib/store');
+const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
+
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 const TOKENS_PATH = path.join(__dirname, 'tokens.json');
@@ -352,6 +356,102 @@ app.get('/api/upload', async (req, res) => {
   }
 });
 
+// ── Auto-Pilot API Routes ────────────────────────────────────────────────
+
+// Get Auto-Pilot configuration & status
+app.get('/api/autopilot/config', (req, res) => {
+  const config = getConfig();
+  res.json({
+    config,
+    hasGeminiKey: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here'),
+    isBusy: isBusy()
+  });
+});
+
+// Update Auto-Pilot configuration
+app.post('/api/autopilot/config', (req, res) => {
+  try {
+    const updated = saveConfig(req.body);
+    setupScheduler({
+      ytDlpPath: YT_DLP,
+      downloadFn: downloadVideo,
+      uploadFn: uploadToYouTube,
+      oauth2Client
+    });
+    res.json({ ok: true, config: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save Gemini API Key directly to environment and .env file
+app.post('/api/autopilot/save-key', (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey || !apiKey.trim()) {
+    return res.status(400).json({ error: 'API key cannot be empty' });
+  }
+
+  process.env.GEMINI_API_KEY = apiKey.trim();
+
+  // Persist to .env
+  const envPath = path.join(__dirname, '.env');
+  try {
+    let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+    if (envContent.includes('GEMINI_API_KEY=')) {
+      envContent = envContent.replace(/GEMINI_API_KEY=.*(\r?\n|$)/, `GEMINI_API_KEY=${apiKey.trim()}$1`);
+    } else {
+      envContent += `\nGEMINI_API_KEY=${apiKey.trim()}\n`;
+    }
+    fs.writeFileSync(envPath, envContent);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to write to .env: ' + err.message });
+  }
+});
+
+// Get upload history
+app.get('/api/autopilot/history', (req, res) => {
+  res.json(getHistory());
+});
+
+// Get recent logs
+app.get('/api/autopilot/logs', (req, res) => {
+  res.json(getRecentLogs());
+});
+
+// Run Auto-Pilot cycle on demand with live SSE streaming
+app.get('/api/autopilot/run', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+
+  const sendEvent = (type, data) => {
+    try {
+      res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+    } catch { /* disconnected */ }
+  };
+
+  runAutoPilotCycle({
+    ytDlpPath: YT_DLP,
+    downloadFn: downloadVideo,
+    uploadFn: uploadToYouTube,
+    oauth2Client,
+    onEvent: (type, payload) => {
+      sendEvent(type, payload);
+    }
+  }).then((result) => {
+    sendEvent('completed', result);
+    res.end();
+  }).catch((err) => {
+    sendEvent('error', { message: err.message });
+    res.end();
+  });
+});
+
 // ── Start Server ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`
@@ -366,4 +466,13 @@ app.listen(PORT, () => {
     console.log('   Copy .env.example to .env and fill in your CLIENT_ID and CLIENT_SECRET');
     console.log('   Get them from: https://console.cloud.google.com/apis/credentials\n');
   }
+
+  // Initialize Auto-Pilot scheduler
+  setupScheduler({
+    ytDlpPath: YT_DLP,
+    downloadFn: downloadVideo,
+    uploadFn: uploadToYouTube,
+    oauth2Client
+  });
 });
+
