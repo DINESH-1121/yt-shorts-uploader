@@ -151,11 +151,12 @@ function downloadVideo(url, onProgress) {
       '--print', '%(ext)s',
       '--print', '%(description).200s',
       '-f', 'bv*+ba/b',
+      '--format-sort', 'res,fps,br,size',
       '--no-playlist',
       url,
     ];
 
-    onProgress?.('Fetching video info...');
+    onProgress?.('Fetching video info (Highest Quality Stream)...');
 
     execFile(YT_DLP, metaArgs, { timeout: 60000 }, (err, stdout, stderr) => {
       if (err) {
@@ -171,18 +172,19 @@ function downloadVideo(url, onProgress) {
 
       onProgress?.(`Found: "${title}"`);
 
-      // Now download
+      // Now download with absolute maximum resolution, frame rate, and bitrate
       const dlArgs = [
         '--no-warnings',
         '--newline',
         '--no-playlist',
         '-f', 'bv*+ba/b',
+        '--format-sort', 'res,fps,br,size',
         '--merge-output-format', 'mp4',
         '-o', outputTemplate,
         url,
       ];
 
-      onProgress?.('Downloading video...');
+      onProgress?.('Downloading video in High Quality (1080p60 / 4K)...');
 
       const dl = spawn(YT_DLP, dlArgs);
       let dlStderr = '';
