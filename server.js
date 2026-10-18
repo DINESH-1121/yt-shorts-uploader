@@ -15,6 +15,7 @@ const { rewriteSingleVideoMetadata, normalizeModelName } = require('./lib/aiEngi
 const { listFreeModels } = require('./lib/aiClient');
 const { getScheduleInfo, buildCronFromCadence } = require('./lib/cadence');
 const { ensureShortsFormat } = require('./lib/shortsFormatter');
+const { authArgs, describeError } = require('./lib/ytdlp');
 
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
@@ -144,15 +145,15 @@ function downloadVideo(url, onProgress) {
     const timestamp = Date.now();
     const outputTemplate = path.join(DOWNLOADS_DIR, `${timestamp}_%(id)s.%(ext)s`);
 
-    // First, get metadata
+    // First, get metadata (metadata only: no format selection needed)
     const metaArgs = [
       '--no-warnings',
+      '--skip-download',
+      ...authArgs(),
       '--print', '%(title)s',
       '--print', '%(id)s',
       '--print', '%(ext)s',
       '--print', '%(description).200s',
-      '-f', 'bv*+ba/b',
-      '--format-sort', 'res,fps,br,size',
       '--no-playlist',
       url,
     ];
@@ -162,7 +163,7 @@ function downloadVideo(url, onProgress) {
     execFile(YT_DLP, metaArgs, { timeout: 60000 }, (err, stdout, stderr) => {
       if (err) {
         console.error('yt-dlp meta error:', err.message, stderr);
-        return reject(new Error('Failed to fetch video info. Check the URL and try again. Details: ' + (stderr || err.message)));
+        return reject(new Error('Failed to fetch video info. Details: ' + describeError(stderr || err.message)));
       }
 
       const lines = stdout.trim().split('\n');
@@ -177,6 +178,7 @@ function downloadVideo(url, onProgress) {
       const dlArgs = [
         '--no-warnings',
         '--newline',
+        ...authArgs(),
         '--no-playlist',
         '-f', 'bv*+ba/b',
         '--format-sort', 'res,fps,br,size',
@@ -209,7 +211,7 @@ function downloadVideo(url, onProgress) {
       dl.on('close', (code) => {
         if (code !== 0) {
           console.error('yt-dlp download stderr:', dlStderr);
-          return reject(new Error('Download failed: ' + (dlStderr || `exit code ${code}`)));
+          return reject(new Error('Download failed: ' + describeError(dlStderr || `exit code ${code}`)));
         }
 
         // Find the downloaded file
@@ -504,6 +506,8 @@ app.post('/api/ai/preview-metadata', async (req, res) => {
 
   const metaArgs = [
     '--no-warnings',
+    '--skip-download',
+    ...authArgs(),
     '--print', '%(title)s',
     '--print', '%(uploader)s',
     '--print', '%(description).300s',
@@ -513,7 +517,7 @@ app.post('/api/ai/preview-metadata', async (req, res) => {
 
   execFile(YT_DLP, metaArgs, { timeout: 35000 }, async (err, stdout, stderr) => {
     if (err) {
-      return res.status(500).json({ error: 'Failed to extract video details: ' + (stderr || err.message) });
+      return res.status(500).json({ error: 'Failed to extract video details: ' + describeError(stderr || err.message) });
     }
 
     const lines = stdout.trim().split('\n');
