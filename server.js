@@ -360,10 +360,13 @@ app.get('/api/upload', async (req, res) => {
 
 // Get Auto-Pilot configuration & status
 app.get('/api/autopilot/config', (req, res) => {
+  // Reload .env so manual edits in .env are picked up immediately
+  require('dotenv').config({ override: true });
   const config = getConfig();
+  const key = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
   res.json({
     config,
-    hasGeminiKey: !!(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here'),
+    hasGeminiKey: !!(key && key !== 'your_gemini_api_key_here'),
     isBusy: isBusy()
   });
 });
@@ -421,6 +424,7 @@ app.get('/api/autopilot/logs', (req, res) => {
 
 // Run Auto-Pilot cycle on demand with live SSE streaming
 app.get('/api/autopilot/run', (req, res) => {
+  require('dotenv').config({ override: true });
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
