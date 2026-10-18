@@ -34,6 +34,7 @@ To smoke-test the gateway: `node smoke-test-ai.js`.
 
 ### Troubleshooting
 
+* **`Sign in to confirm you're not a bot` / downloads fail at video info** — YouTube is blocking anonymous extraction. Sign in to YouTube in a desktop browser, then set `YTDLP_COOKIES_FROM_BROWSER=chrome` (or `edge`/`safari`) in `.env`, or export a `cookies.txt` and set `YTDLP_COOKIES=/path/to/cookies.txt`. Restart the server and the scanner, download and metadata-preview paths all pick it up. On a VPN/datacenter IP, disabling the VPN also often clears it. Verify manually with `yt-dlp --skip-download --print "%(title)s" --cookies-from-browser chrome "<url>"`.
 * **`[AIClient] Discovery failed ...`** — the OpenCode service isn't reachable; the client falls back to its built-in model list. Check `opencode service status`.
 * **Every model cools down ("All OpenCode free models failed")** — quota/outage. Uploads continue in heuristic mode; check the Auto-Pilot terminal log for the reported upstream error.
 * **Auto-Pilot logs "cycle is already in progress"** — a cycle is still running; the warning is surfaced at most once per 5 minutes. The minimum cadence is 15 minutes because a full cycle takes minutes.
