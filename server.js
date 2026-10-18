@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 const { getConfig, saveConfig, getHistory } = require('./lib/store');
 const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
 const { rewriteSingleVideoMetadata } = require('./lib/aiEngine');
+const { getScheduleInfo, buildCronFromCadence } = require('./lib/cadence');
 
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
@@ -386,11 +387,24 @@ app.get('/api/autopilot/config', (req, res) => {
   require('dotenv').config({ override: true });
   const config = getConfig();
   const key = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
+  const scheduleInfo = getScheduleInfo(config.schedule, config);
   res.json({
     config,
+    scheduleInfo,
     hasGeminiKey: !!(key && key !== 'your_gemini_api_key_here'),
     isBusy: isBusy()
   });
+});
+
+// Live Preview & Validate Cadence
+app.post('/api/autopilot/cadence-preview', (req, res) => {
+  try {
+    const { cron, label, error } = buildCronFromCadence(req.body);
+    const scheduleInfo = getScheduleInfo(cron, { scheduleLabel: label });
+    res.json({ ok: !error, cron, label, error, scheduleInfo });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 // Update Auto-Pilot configuration
@@ -403,7 +417,8 @@ app.post('/api/autopilot/config', (req, res) => {
       uploadFn: uploadToYouTube,
       oauth2Client
     });
-    res.json({ ok: true, config: updated });
+    const scheduleInfo = getScheduleInfo(updated.schedule, updated);
+    res.json({ ok: true, config: updated, scheduleInfo });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -293,6 +293,265 @@ function getModelLabel(modelName) {
   return 'Gemini AI';
 }
 
+// ── Dynamic Cadence Studio State & Logic ─────────────────────────────────
+
+let currentCadence = {
+  mode: 'interval',
+  preset: 'every-2h',
+  intervalValue: 2,
+  intervalUnit: 'hours',
+  dailyHour: 12,
+  peakPreset: 'gaming_peak',
+  specificTimes: ['12:00', '19:00'],
+  customCron: '0 */2 * * *'
+};
+let cadenceDebounceTimer = null;
+let countdownIntervalTimer = null;
+let nextScheduledRunDate = null;
+
+function selectCadenceMode(mode) {
+  currentCadence.mode = mode;
+
+  // Toggle mode tab buttons
+  document.querySelectorAll('.cadence-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `cadence-tab-${mode}`);
+  });
+
+  // Toggle panel view
+  document.querySelectorAll('.cadence-mode-view').forEach(panel => {
+    panel.classList.toggle('hidden', panel.id !== `cadence-panel-${mode}`);
+  });
+
+  triggerCadencePreviewAndSave();
+}
+
+function stepInterval(delta) {
+  const input = document.getElementById('cadence-interval-val');
+  if (!input) return;
+  let val = parseInt(input.value || 2, 10) + delta;
+  const unit = document.getElementById('cadence-interval-unit')?.value || 'hours';
+  const max = unit === 'minutes' ? 59 : (unit === 'hours' ? 23 : 30);
+  val = Math.max(1, Math.min(max, val));
+  input.value = val;
+  currentCadence.intervalValue = val;
+  triggerCadencePreviewAndSave();
+}
+
+function onIntervalUnitChange() {
+  const unit = document.getElementById('cadence-interval-unit')?.value || 'hours';
+  currentCadence.intervalUnit = unit;
+  const input = document.getElementById('cadence-interval-val');
+  const dailyHourGroup = document.getElementById('daily-hour-group');
+
+  if (dailyHourGroup) {
+    dailyHourGroup.classList.toggle('hidden', unit !== 'days');
+  }
+
+  if (input) {
+    const max = unit === 'minutes' ? 59 : (unit === 'hours' ? 23 : 30);
+    input.max = max;
+    if (parseInt(input.value, 10) > max) input.value = max;
+    currentCadence.intervalValue = parseInt(input.value, 10);
+  }
+
+  triggerCadencePreviewAndSave();
+}
+
+function onCadenceInputChange() {
+  const val = parseInt(document.getElementById('cadence-interval-val')?.value || 2, 10);
+  const unit = document.getElementById('cadence-interval-unit')?.value || 'hours';
+  const dailyHour = parseInt(document.getElementById('cadence-daily-hour')?.value || 12, 10);
+
+  currentCadence.intervalValue = Math.max(1, val);
+  currentCadence.intervalUnit = unit;
+  currentCadence.dailyHour = dailyHour;
+
+  triggerCadencePreviewAndSave();
+}
+
+function onPeakPresetChange(presetKey) {
+  currentCadence.peakPreset = presetKey;
+  document.querySelectorAll('.peak-card').forEach(card => {
+    const radio = card.querySelector('input[type="radio"]');
+    card.classList.toggle('selected', radio && radio.value === presetKey);
+  });
+  triggerCadencePreviewAndSave();
+}
+
+function formatTimeDisplay(timeStr) {
+  const [hStr, mStr] = (timeStr || '12:00').split(':');
+  const h = parseInt(hStr, 10);
+  const m = mStr || '00';
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12 < 10 ? '0' + h12 : h12}:${m} ${ampm}`;
+}
+
+function renderSpecificTimes() {
+  const container = document.getElementById('selected-times-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const times = currentCadence.specificTimes || [];
+  if (times.length === 0) {
+    container.innerHTML = '<span class="text-muted text-sm">No specific times selected. Click a quick time above or add custom.</span>';
+    return;
+  }
+
+  times.forEach(timeStr => {
+    const tag = document.createElement('div');
+    tag.className = 'time-tag';
+    tag.innerHTML = `
+      <span>🕒 ${formatTimeDisplay(timeStr)}</span>
+      <button type="button" class="time-tag-remove" onclick="removeSpecificTime('${timeStr}')" title="Remove time">✕</button>
+    `;
+    container.appendChild(tag);
+  });
+
+  // Highlight active chips
+  document.querySelectorAll('.time-chip').forEach(chip => {
+    const match = times.some(t => chip.textContent.includes(t) || chip.textContent.includes(formatTimeDisplay(t)));
+    chip.classList.toggle('active', match);
+  });
+}
+
+function toggleSpecificTime(timeStr) {
+  if (!currentCadence.specificTimes) currentCadence.specificTimes = [];
+  const idx = currentCadence.specificTimes.indexOf(timeStr);
+  if (idx >= 0) {
+    currentCadence.specificTimes.splice(idx, 1);
+  } else {
+    currentCadence.specificTimes.push(timeStr);
+  }
+  currentCadence.specificTimes.sort();
+  renderSpecificTimes();
+  triggerCadencePreviewAndSave();
+}
+
+function addCustomSpecificTime() {
+  const input = document.getElementById('new-specific-time');
+  if (!input || !input.value) return;
+  const time = input.value.trim();
+  if (!currentCadence.specificTimes) currentCadence.specificTimes = [];
+  if (!currentCadence.specificTimes.includes(time)) {
+    currentCadence.specificTimes.push(time);
+    currentCadence.specificTimes.sort();
+    renderSpecificTimes();
+    triggerCadencePreviewAndSave();
+  }
+}
+
+function removeSpecificTime(timeStr) {
+  if (!currentCadence.specificTimes) return;
+  currentCadence.specificTimes = currentCadence.specificTimes.filter(t => t !== timeStr);
+  renderSpecificTimes();
+  triggerCadencePreviewAndSave();
+}
+
+function onPresetDropdownChange() {
+  const sel = document.getElementById('auto-schedule');
+  if (!sel) return;
+  currentCadence.preset = sel.value;
+  triggerCadencePreviewAndSave();
+}
+
+function onCustomCronInput() {
+  clearTimeout(cadenceDebounceTimer);
+  cadenceDebounceTimer = setTimeout(() => {
+    const input = document.getElementById('cadence-custom-cron');
+    if (input) {
+      currentCadence.customCron = input.value.trim();
+      triggerCadencePreviewAndSave();
+    }
+  }, 450);
+}
+
+function applyCustomCron() {
+  const input = document.getElementById('cadence-custom-cron');
+  if (input) {
+    currentCadence.customCron = input.value.trim();
+    triggerCadencePreviewAndSave(true);
+  }
+}
+
+function triggerCadencePreviewAndSave(forceImmediate = false) {
+  clearTimeout(cadenceDebounceTimer);
+  if (forceImmediate) {
+    executeCadenceUpdate();
+  } else {
+    cadenceDebounceTimer = setTimeout(executeCadenceUpdate, 350);
+  }
+}
+
+async function executeCadenceUpdate() {
+  try {
+    const res = await fetch('/api/autopilot/cadence-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentCadence)
+    });
+    const data = await res.json();
+    if (data.ok && data.scheduleInfo) {
+      updateCadenceUIElements(data.scheduleInfo);
+
+      if (autopilotConfig) {
+        autopilotConfig.cadence = currentCadence;
+        autopilotConfig.schedule = data.cron;
+        autopilotConfig.scheduleLabel = data.label;
+        await saveAutoPilotConfig();
+      }
+    } else if (data.error) {
+      const lbl = document.getElementById('cadence-active-label');
+      if (lbl) lbl.textContent = `⚠️ ${data.error}`;
+    }
+  } catch (err) {
+    console.error('Cadence preview error:', err);
+  }
+}
+
+function updateCadenceUIElements(info) {
+  if (!info) return;
+
+  const lbl = document.getElementById('cadence-active-label');
+  const cronEl = document.getElementById('cadence-active-cron');
+  const nextTime = document.getElementById('cadence-next-time');
+  const countdownBadge = document.getElementById('cadence-countdown-badge');
+  const statusPillText = document.getElementById('cadence-next-countdown');
+
+  if (lbl) lbl.textContent = info.label;
+  if (cronEl) cronEl.textContent = info.cron;
+  if (nextTime) nextTime.textContent = info.nextRunFormatted || 'None scheduled';
+  if (countdownBadge) countdownBadge.textContent = info.countdown;
+  if (statusPillText) statusPillText.textContent = `Next upload: ${info.countdown}`;
+
+  if (info.nextRunDate) {
+    nextScheduledRunDate = new Date(info.nextRunDate);
+  }
+}
+
+function startCountdownTicker() {
+  if (countdownIntervalTimer) clearInterval(countdownIntervalTimer);
+  countdownIntervalTimer = setInterval(() => {
+    if (!nextScheduledRunDate) return;
+    const now = new Date();
+    const diffMs = nextScheduledRunDate.getTime() - now.getTime();
+    const countdownBadge = document.getElementById('cadence-countdown-badge');
+    const statusPillText = document.getElementById('cadence-next-countdown');
+
+    if (diffMs <= 0) {
+      if (countdownBadge) countdownBadge.textContent = 'Due now';
+      if (statusPillText) statusPillText.textContent = 'Next upload: Due now';
+      return;
+    }
+    const totalMins = Math.round(diffMs / 60000);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const text = hours === 0 ? `in ${mins}m` : `in ${hours}h ${mins}m`;
+    if (countdownBadge) countdownBadge.textContent = text;
+    if (statusPillText) statusPillText.textContent = `Next upload: ${text}`;
+  }, 10000);
+}
+
 async function loadAutoPilotConfig() {
   try {
     const res = await fetch('/api/autopilot/config');
@@ -313,7 +572,7 @@ async function loadAutoPilotConfig() {
     }
 
     // Model selection
-    const activeModel = autopilotConfig.geminiModel || 'gemini-2.5-pro';
+    const activeModel = autopilotConfig.geminiModel || 'gemini-3.8-flash';
     if (autoModel) autoModel.value = activeModel;
     if (statModel) statModel.textContent = getModelLabel(activeModel);
 
@@ -328,10 +587,47 @@ async function loadAutoPilotConfig() {
       geminiStatusText.textContent = 'Add your Google Gemini API key to unlock deep Pro reasoning.';
     }
 
-    // Dropdowns
-    if (autopilotConfig.schedule && autoSchedule) {
-      autoSchedule.value = autopilotConfig.schedule;
+    // Initialize Cadence Studio
+    if (autopilotConfig.cadence) {
+      currentCadence = { ...currentCadence, ...autopilotConfig.cadence };
     }
+
+    if (data.scheduleInfo) {
+      updateCadenceUIElements(data.scheduleInfo);
+    }
+
+    // Restore mode
+    selectCadenceMode(currentCadence.mode || 'interval');
+
+    // Populate Interval controls
+    const intVal = document.getElementById('cadence-interval-val');
+    const intUnit = document.getElementById('cadence-interval-unit');
+    const dailyHour = document.getElementById('cadence-daily-hour');
+    if (intVal) intVal.value = currentCadence.intervalValue || 2;
+    if (intUnit) intUnit.value = currentCadence.intervalUnit || 'hours';
+    if (dailyHour) dailyHour.value = currentCadence.dailyHour || 12;
+    onIntervalUnitChange();
+
+    // Populate Peak hours
+    const peakRadio = document.querySelector(`input[name="peakPreset"][value="${currentCadence.peakPreset || 'gaming_peak'}"]`);
+    if (peakRadio) peakRadio.checked = true;
+    onPeakPresetChange(currentCadence.peakPreset || 'gaming_peak');
+
+    // Populate Specific times
+    renderSpecificTimes();
+
+    // Populate Custom cron
+    const customCronInput = document.getElementById('cadence-custom-cron');
+    if (customCronInput) customCronInput.value = currentCadence.customCron || autopilotConfig.schedule || '';
+
+    // Populate Preset dropdown
+    const presetDropdown = document.getElementById('auto-schedule');
+    if (presetDropdown && currentCadence.preset) presetDropdown.value = currentCadence.preset;
+
+    // Start Live Countdown Ticker
+    startCountdownTicker();
+
+    // Privacy & Niche dropdowns
     if (autopilotConfig.privacy && autoPrivacy) {
       autoPrivacy.value = autopilotConfig.privacy;
     }
@@ -372,6 +668,13 @@ function renderSources() {
   });
 }
 
+async function deleteSource(index) {
+  if (!autopilotConfig || !autopilotConfig.sources) return;
+  autopilotConfig.sources.splice(index, 1);
+  renderSources();
+  await saveAutoPilotConfig();
+}
+
 async function toggleAutoPilot(isChecked) {
   if (!autopilotConfig) return;
   autopilotConfig.enabled = isChecked;
@@ -391,7 +694,6 @@ async function toggleAutoPilot(isChecked) {
 
 async function updateSettings() {
   if (!autopilotConfig) return;
-  autopilotConfig.schedule = autoSchedule.value;
   autopilotConfig.privacy = autoPrivacy.value;
   autopilotConfig.nicheFocus = autoNiche.value;
   autopilotConfig.autoTrending = autoTrending.checked;
@@ -402,7 +704,7 @@ async function updateSettings() {
   }
 
   await saveAutoPilotConfig();
-  addTerminalLog(`Configuration updated: [Model: ${getModelLabel(autoModel.value)}] [Focus: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
+  addTerminalLog(`Configuration updated: [Model: ${getModelLabel(autoModel.value)}] [Strategy: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
 }
 
 async function addSource() {

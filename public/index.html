@@ -287,36 +287,24 @@
         </div>
 
         <!-- Schedule & Niche Focus -->
+        <!-- Strategy & Privacy Settings -->
         <div class="card">
           <div class="card-header">
-            <h3>⚙️ Content Focus &amp; Automation Cadence</h3>
-            <p class="subtitle">Fine-tune what content gets prioritized and when uploads occur</p>
+            <h3>⚙️ Content Strategy &amp; Privacy</h3>
+            <p class="subtitle">Fine-tune what content gets prioritized and channel visibility</p>
           </div>
 
           <div class="grid-2">
             <div class="form-group">
               <label for="auto-niche">Content Strategy</label>
               <select id="auto-niche" onchange="updateSettings()">
-                <option value="smart_mix">🎮 70% Gaming Focus + 30% Tech Innovations</option>
-                <option value="gaming">🎮 Gaming Only (GTA 6, Clutches, Gameplay, Glitches)</option>
+                <option value="smart_mix">🎮 70% Worldwide Gaming + 30% Tech Innovations</option>
+                <option value="gaming">🎮 Worldwide Gaming Only (GTA 6, Clutches, Gameplay, Glitches)</option>
                 <option value="awaited_launches">🚀 Most Awaited Game Launches (GTA 6, PS5 Pro, Teasers)</option>
-                <option value="trending_now">🔥 Live Viral Trending Shorts</option>
+                <option value="trending_now">🔥 Live Worldwide Viral Trending Shorts</option>
               </select>
             </div>
 
-            <div class="form-group">
-              <label for="auto-schedule">Upload Cadence (Schedule)</label>
-              <select id="auto-schedule" onchange="updateSettings()">
-                <option value="0 */6 * * *">Every 6 Hours</option>
-                <option value="0 */12 * * *">Every 12 Hours (Twice daily)</option>
-                <option value="0 9 * * *">Once Daily (9:00 AM)</option>
-                <option value="0 18 * * *">Once Daily (6:00 PM)</option>
-                <option value="*/30 * * * *">Every 30 Minutes (Testing mode)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid-2 mt-sm">
             <div class="form-group">
               <label for="auto-privacy">Publish Privacy</label>
               <select id="auto-privacy" onchange="updateSettings()">
@@ -325,12 +313,168 @@
                 <option value="public">Public (Direct publish)</option>
               </select>
             </div>
+          </div>
 
-            <div class="form-group flex-center-start">
-              <label class="checkbox-container" for="auto-trending">
-                <input type="checkbox" id="auto-trending" checked onchange="updateSettings()" />
-                <span>⚡ Auto-Discover Trending Gaming Topics via AI</span>
-              </label>
+          <div class="form-group mt-sm">
+            <label class="checkbox-container" for="auto-trending">
+              <input type="checkbox" id="auto-trending" checked onchange="updateSettings()" />
+              <span>⚡ Auto-Discover Trending Worldwide Gaming Topics via Gemini AI</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Dynamic Upload Cadence (Schedule) Studio -->
+        <div class="card" id="cadence-card">
+          <div class="card-header">
+            <div class="flex-between">
+              <div>
+                <h3>⏱️ Dynamic Upload Cadence &amp; Schedule</h3>
+                <p class="subtitle">Configure automated publishing cadence via custom intervals, peak viral hours, or specific times</p>
+              </div>
+              <div class="cadence-live-badge" id="cadence-status-pill">
+                <span class="pulse-dot"></span>
+                <span id="cadence-next-countdown">Next run: calculating...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Cadence Mode Tabs -->
+          <div class="cadence-modes" role="tablist" aria-label="Cadence Modes">
+            <button type="button" class="cadence-mode-btn active" id="cadence-tab-interval" onclick="selectCadenceMode('interval')">
+              <span>⚡ Dynamic Interval</span>
+            </button>
+            <button type="button" class="cadence-mode-btn" id="cadence-tab-peak_hours" onclick="selectCadenceMode('peak_hours')">
+              <span>🎮 Viral Peak Hours</span>
+            </button>
+            <button type="button" class="cadence-mode-btn" id="cadence-tab-specific_times" onclick="selectCadenceMode('specific_times')">
+              <span>🕒 Daily Times</span>
+            </button>
+            <button type="button" class="cadence-mode-btn" id="cadence-tab-preset" onclick="selectCadenceMode('preset')">
+              <span>📋 Quick Presets</span>
+            </button>
+            <button type="button" class="cadence-mode-btn" id="cadence-tab-custom" onclick="selectCadenceMode('custom')">
+              <span>⚙️ Custom Cron</span>
+            </button>
+          </div>
+
+          <!-- Cadence Mode Panels -->
+          <div class="cadence-panel mt-md">
+            
+            <!-- 1. Interval Panel -->
+            <div id="cadence-panel-interval" class="cadence-mode-view">
+              <label class="cadence-input-label">Publish an automated short every:</label>
+              <div class="interval-controls">
+                <div class="interval-stepper">
+                  <button type="button" class="btn-stepper" onclick="stepInterval(-1)" aria-label="Decrease interval">−</button>
+                  <input type="number" id="cadence-interval-val" min="1" max="59" value="2" oninput="onCadenceInputChange()" />
+                  <button type="button" class="btn-stepper" onclick="stepInterval(1)" aria-label="Increase interval">+</button>
+                </div>
+                <select id="cadence-interval-unit" onchange="onIntervalUnitChange()">
+                  <option value="hours" selected>Hour(s)</option>
+                  <option value="minutes">Minute(s)</option>
+                  <option value="days">Day(s)</option>
+                </select>
+                <div id="daily-hour-group" class="daily-hour-group hidden">
+                  <span>at</span>
+                  <select id="cadence-daily-hour" onchange="onCadenceInputChange()">
+                    <option value="9">09:00 AM</option>
+                    <option value="12" selected>12:00 PM</option>
+                    <option value="15">03:00 PM</option>
+                    <option value="18">06:00 PM</option>
+                    <option value="21">09:00 PM</option>
+                  </select>
+                </div>
+              </div>
+              <p class="hint-text mt-xs">Examples: Every 45 minutes, every 2 hours, or every 3 days.</p>
+            </div>
+
+            <!-- 2. Viral Peak Hours Panel -->
+            <div id="cadence-panel-peak_hours" class="cadence-mode-view hidden">
+              <label class="cadence-input-label">Select high-traffic global viral peak window:</label>
+              <div class="peak-cards-grid">
+                <label class="peak-card" id="peak-card-gaming" for="peak-gaming">
+                  <input type="radio" name="peakPreset" id="peak-gaming" value="gaming_peak" checked onchange="onPeakPresetChange('gaming_peak')" />
+                  <div class="peak-content">
+                    <span class="peak-title">🎮 Worldwide Gaming Peak</span>
+                    <span class="peak-desc">12:00 PM, 5:00 PM &amp; 9:00 PM (Target global gaming hours)</span>
+                  </div>
+                </label>
+                <label class="peak-card" id="peak-card-prime" for="peak-prime">
+                  <input type="radio" name="peakPreset" id="peak-prime" value="afternoon_evening" onchange="onPeakPresetChange('afternoon_evening')" />
+                  <div class="peak-content">
+                    <span class="peak-title">🔥 Afternoon &amp; Prime Time</span>
+                    <span class="peak-desc">2:00 PM, 6:00 PM &amp; 10:00 PM (High engagement)</span>
+                  </div>
+                </label>
+                <label class="peak-card" id="peak-card-triad" for="peak-triad">
+                  <input type="radio" name="peakPreset" id="peak-triad" value="daily_triad" onchange="onPeakPresetChange('daily_triad')" />
+                  <div class="peak-content">
+                    <span class="peak-title">🚀 3x Daily Spread</span>
+                    <span class="peak-desc">9:00 AM, 2:00 PM &amp; 7:00 PM (Consistent all-day reach)</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Specific Daily Times Panel -->
+            <div id="cadence-panel-specific_times" class="cadence-mode-view hidden">
+              <label class="cadence-input-label">Choose specific time(s) to publish daily:</label>
+              <div class="times-picker-group">
+                <div class="quick-time-chips">
+                  <button type="button" class="time-chip" onclick="toggleSpecificTime('09:00')">+ 09:00 AM</button>
+                  <button type="button" class="time-chip" onclick="toggleSpecificTime('12:00')">+ 12:00 PM</button>
+                  <button type="button" class="time-chip" onclick="toggleSpecificTime('15:00')">+ 03:00 PM</button>
+                  <button type="button" class="time-chip" onclick="toggleSpecificTime('18:00')">+ 06:00 PM</button>
+                  <button type="button" class="time-chip" onclick="toggleSpecificTime('21:00')">+ 09:00 PM</button>
+                </div>
+                <div class="custom-time-add">
+                  <input type="time" id="new-specific-time" value="12:00" />
+                  <button type="button" class="btn btn-secondary" onclick="addCustomSpecificTime()">+ Add Custom Time</button>
+                </div>
+              </div>
+              <div class="selected-times-container" id="selected-times-list"></div>
+            </div>
+
+            <!-- 4. Quick Presets Panel -->
+            <div id="cadence-panel-preset" class="cadence-mode-view hidden">
+              <label class="cadence-input-label" for="auto-schedule">Select standard interval preset:</label>
+              <select id="auto-schedule" onchange="onPresetDropdownChange()">
+                <option value="every-15m">Every 15 Minutes (High Velocity)</option>
+                <option value="every-30m">Every 30 Minutes (Rapid testing)</option>
+                <option value="every-1h">Every 1 Hour</option>
+                <option value="every-2h" selected>Every 2 Hours</option>
+                <option value="every-3h">Every 3 Hours</option>
+                <option value="every-4h">Every 4 Hours</option>
+                <option value="every-6h">Every 6 Hours</option>
+                <option value="every-12h">Every 12 Hours (Twice Daily)</option>
+                <option value="daily-9am">Daily at 9:00 AM</option>
+                <option value="daily-6pm">Daily at 6:00 PM</option>
+              </select>
+            </div>
+
+            <!-- 5. Custom Cron Panel -->
+            <div id="cadence-panel-custom" class="cadence-mode-view hidden">
+              <label class="cadence-input-label" for="cadence-custom-cron">Standard 5-Field Cron Expression:</label>
+              <div class="input-btn-group">
+                <input type="text" id="cadence-custom-cron" placeholder="e.g. 0 */3 * * *" oninput="onCustomCronInput()" />
+                <button type="button" class="btn btn-secondary" onclick="applyCustomCron()">Apply Cron</button>
+              </div>
+              <p class="hint-text mt-xs">Format: <code>minute hour day-of-month month day-of-week</code> (e.g. <code>*/45 * * * *</code>)</p>
+            </div>
+
+          </div>
+
+          <!-- Live Cadence Summary Footer Box -->
+          <div class="cadence-summary-box mt-md">
+            <div class="summary-left">
+              <div class="summary-label">ACTIVE CADENCE</div>
+              <div class="summary-title" id="cadence-active-label">Every 2 Hours</div>
+              <div class="summary-cron-tag"><span id="cadence-active-cron">0 */2 * * *</span></div>
+            </div>
+            <div class="summary-right">
+              <div class="summary-label">NEXT AUTOMATED UPLOAD</div>
+              <div class="summary-next" id="cadence-next-time">Sun, Oct 18, 04:00 PM</div>
+              <div class="summary-countdown" id="cadence-countdown-badge">in 2 mins</div>
             </div>
           </div>
         </div>
