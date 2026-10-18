@@ -2,11 +2,17 @@
 const btnConnect = document.getElementById('btn-connect');
 const connectedBadge = document.getElementById('connected-badge');
 
+// Stats Bar Elements
+const statModel = document.getElementById('stat-model');
+const statAutopilotStatus = document.getElementById('stat-autopilot-status');
+const statUploadsCount = document.getElementById('stat-uploads-count');
+
 // Manual Upload Elements
 const btnUpload = document.getElementById('btn-upload');
 const btnText = btnUpload.querySelector('.btn-text');
 const btnLoading = btnUpload.querySelector('.btn-loading');
 const progressSection = document.getElementById('progress-section');
+const progressBarWrap = document.getElementById('progress-bar-wrap');
 const progressBar = document.getElementById('progress-bar');
 const progressText = document.getElementById('progress-text');
 const progressLog = document.getElementById('progress-log');
@@ -25,6 +31,7 @@ const btnRunLoading = btnRunAutopilot.querySelector('.btn-loading');
 const geminiBadge = document.getElementById('gemini-badge');
 const geminiStatusText = document.getElementById('gemini-status-text');
 const geminiApiKeyInput = document.getElementById('gemini-api-key');
+const autoModel = document.getElementById('auto-model');
 const autoSchedule = document.getElementById('auto-schedule');
 const autoPrivacy = document.getElementById('auto-privacy');
 const autoNiche = document.getElementById('auto-niche');
@@ -36,17 +43,30 @@ const historyContainer = document.getElementById('history-container');
 let uploadFinished = false;
 let autopilotConfig = null;
 
-// ── Tab Navigation ───────────────────────────────────────────────────────
+// ── Tab Navigation & Accessibility ───────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.view-panel').forEach(v => v.classList.add('hidden'));
+  const tabManual = document.getElementById('tab-btn-manual');
+  const tabAuto = document.getElementById('tab-btn-autopilot');
+  const viewManual = document.getElementById('view-manual');
+  const viewAuto = document.getElementById('view-autopilot');
 
   if (tab === 'manual') {
-    document.getElementById('tab-btn-manual').classList.add('active');
-    document.getElementById('view-manual').classList.remove('hidden');
+    tabManual.classList.add('active');
+    tabManual.setAttribute('aria-selected', 'true');
+    tabAuto.classList.remove('active');
+    tabAuto.setAttribute('aria-selected', 'false');
+
+    viewManual.classList.remove('hidden');
+    viewAuto.classList.add('hidden');
   } else {
-    document.getElementById('tab-btn-autopilot').classList.add('active');
-    document.getElementById('view-autopilot').classList.remove('hidden');
+    tabAuto.classList.add('active');
+    tabAuto.setAttribute('aria-selected', 'true');
+    tabManual.classList.remove('active');
+    tabManual.setAttribute('aria-selected', 'false');
+
+    viewAuto.classList.remove('hidden');
+    viewManual.classList.add('hidden');
+
     loadAutoPilotConfig();
     loadHistory();
   }
@@ -80,7 +100,7 @@ async function disconnect() {
   connectedBadge.classList.add('hidden');
 }
 
-// ── Manual Upload ────────────────────────────────────────────────────────
+// ── Manual Upload Pipeline ───────────────────────────────────────────────
 function startUpload() {
   const url = document.getElementById('video-url').value.trim();
   if (!url) {
@@ -129,10 +149,13 @@ function startUpload() {
         const pctMatch = data.message.match(/(\d+\.?\d*)%/);
         if (pctMatch) {
           const pct = parseFloat(pctMatch[1]);
+          let totalPct = pct / 2;
           if (data.message.includes('YouTube')) {
-            progressBar.style.width = `${50 + pct / 2}%`;
-          } else {
-            progressBar.style.width = `${pct / 2}%`;
+            totalPct = 50 + pct / 2;
+          }
+          progressBar.style.width = `${totalPct}%`;
+          if (progressBarWrap) {
+            progressBarWrap.setAttribute('aria-valuenow', Math.round(totalPct));
           }
         }
         break;
@@ -142,6 +165,7 @@ function startUpload() {
         uploadFinished = true;
         evtSource.close();
         progressBar.style.width = '100%';
+        if (progressBarWrap) progressBarWrap.setAttribute('aria-valuenow', 100);
         progressText.textContent = data.message;
         addLog(`✅ ${data.message}`);
 
@@ -150,6 +174,7 @@ function startUpload() {
         resultSection.classList.remove('hidden');
         progressSection.classList.add('hidden');
         setUploading(false);
+        loadHistory();
         break;
       }
 
@@ -189,8 +214,9 @@ function setUploading(isUploading) {
     resultSection.classList.add('hidden');
     errorSection.classList.add('hidden');
     progressBar.style.width = '0%';
+    if (progressBarWrap) progressBarWrap.setAttribute('aria-valuenow', 0);
     progressLog.innerHTML = '';
-    progressText.textContent = 'Starting...';
+    progressText.textContent = 'Starting download...';
   }
 }
 
@@ -214,7 +240,14 @@ function resetForm() {
   setUploading(false);
 }
 
-// ── Auto-Pilot Functions ─────────────────────────────────────────────────
+// ── Auto-Pilot Pro Controls ──────────────────────────────────────────────
+
+function getModelLabel(modelName) {
+  if (modelName === 'gemini-2.5-pro') return 'Gemini 2.5 Pro';
+  if (modelName === 'gemini-1.5-pro') return 'Gemini 1.5 Pro';
+  if (modelName === 'gemini-2.5-flash') return 'Gemini 2.5 Flash';
+  return 'Gemini 2.5 Pro';
+}
 
 async function loadAutoPilotConfig() {
   try {
@@ -222,36 +255,48 @@ async function loadAutoPilotConfig() {
     const data = await res.json();
     autopilotConfig = data.config;
 
-    // Toggle state
-    autopilotToggle.checked = !!autopilotConfig.enabled;
-    toggleLabel.textContent = autopilotConfig.enabled ? 'ON' : 'OFF';
-    toggleLabel.classList.toggle('active', !!autopilotConfig.enabled);
+    // Toggle & stats
+    const isEnabled = !!autopilotConfig.enabled;
+    autopilotToggle.checked = isEnabled;
+    toggleLabel.textContent = isEnabled ? 'ON' : 'OFF';
+    toggleLabel.classList.toggle('active', isEnabled);
 
-    autopilotIndicator.textContent = autopilotConfig.enabled ? 'ACTIVE' : 'OFF';
-    autopilotIndicator.className = autopilotConfig.enabled ? 'pill-badge pill-on' : 'pill-badge pill-off';
+    autopilotIndicator.textContent = isEnabled ? 'ACTIVE' : 'OFF';
+    autopilotIndicator.className = isEnabled ? 'pill-badge pill-on' : 'pill-badge pill-off';
+    if (statAutopilotStatus) {
+      statAutopilotStatus.textContent = isEnabled ? 'Active (ON)' : 'Off';
+      statAutopilotStatus.style.color = isEnabled ? 'var(--success)' : 'inherit';
+    }
 
-    // Gemini status
+    // Model selection
+    const activeModel = autopilotConfig.geminiModel || 'gemini-2.5-pro';
+    if (autoModel) autoModel.value = activeModel;
+    if (statModel) statModel.textContent = getModelLabel(activeModel);
+
+    // Gemini API status badge
     if (data.hasGeminiKey) {
-      geminiBadge.textContent = 'Active';
+      geminiBadge.textContent = 'Active (Pro)';
       geminiBadge.className = 'pill-badge pill-on';
-      geminiStatusText.textContent = 'Gemini 2.5 Flash connected and ready to evaluate videos.';
+      geminiStatusText.textContent = `${getModelLabel(activeModel)} Flagship model connected and ready.`;
     } else {
       geminiBadge.textContent = 'Key Needed';
       geminiBadge.className = 'pill-badge pill-off';
-      geminiStatusText.textContent = 'Add your API key below for deep AI evaluation (or runs in smart heuristic mode).';
+      geminiStatusText.textContent = 'Add your Google Gemini API key to unlock deep Pro reasoning.';
     }
 
-    // Schedule & Privacy
-    if (autopilotConfig.schedule) {
+    // Dropdowns
+    if (autopilotConfig.schedule && autoSchedule) {
       autoSchedule.value = autopilotConfig.schedule;
     }
-    if (autopilotConfig.privacy) {
+    if (autopilotConfig.privacy && autoPrivacy) {
       autoPrivacy.value = autopilotConfig.privacy;
     }
-    if (autopilotConfig.nicheFocus) {
+    if (autopilotConfig.nicheFocus && autoNiche) {
       autoNiche.value = autopilotConfig.nicheFocus;
     }
-    autoTrending.checked = autopilotConfig.autoTrending !== false;
+    if (autoTrending) {
+      autoTrending.checked = autopilotConfig.autoTrending !== false;
+    }
 
     renderSources();
   } catch (err) {
@@ -260,23 +305,24 @@ async function loadAutoPilotConfig() {
 }
 
 function renderSources() {
-  if (!autopilotConfig || !autopilotConfig.sources) return;
+  if (!autopilotConfig || !autopilotConfig.sources || !sourcesList) return;
   sourcesList.innerHTML = '';
 
   if (autopilotConfig.sources.length === 0) {
-    sourcesList.innerHTML = '<div class="empty-state">No sources added yet. Add a channel URL or keyword below.</div>';
+    sourcesList.innerHTML = '<div class="empty-state">No custom sources added. Dynamic trending topics will be used automatically.</div>';
     return;
   }
 
   autopilotConfig.sources.forEach((src, idx) => {
     const div = document.createElement('div');
     div.className = 'source-item';
+    div.setAttribute('role', 'listitem');
     div.innerHTML = `
       <div class="source-meta">
         <span class="source-type-tag">${src.type || 'source'}</span>
         <span class="source-name" title="${src.url}">${src.name || src.url}</span>
       </div>
-      <button class="btn-icon-del" onclick="deleteSource(${idx})" title="Remove source">✕</button>
+      <button class="btn-icon-del" onclick="deleteSource(${idx})" aria-label="Remove source ${src.name || src.url}" title="Remove source">✕</button>
     `;
     sourcesList.appendChild(div);
   });
@@ -290,6 +336,10 @@ async function toggleAutoPilot(isChecked) {
   toggleLabel.classList.toggle('active', isChecked);
   autopilotIndicator.textContent = isChecked ? 'ACTIVE' : 'OFF';
   autopilotIndicator.className = isChecked ? 'pill-badge pill-on' : 'pill-badge pill-off';
+  if (statAutopilotStatus) {
+    statAutopilotStatus.textContent = isChecked ? 'Active (ON)' : 'Off';
+    statAutopilotStatus.style.color = isChecked ? 'var(--success)' : 'inherit';
+  }
 
   await saveAutoPilotConfig();
   addTerminalLog(`Auto-Pilot scheduler turned ${isChecked ? 'ON' : 'OFF'}.`);
@@ -301,8 +351,14 @@ async function updateSettings() {
   autopilotConfig.privacy = autoPrivacy.value;
   autopilotConfig.nicheFocus = autoNiche.value;
   autopilotConfig.autoTrending = autoTrending.checked;
+  autopilotConfig.geminiModel = autoModel.value;
+
+  if (statModel) {
+    statModel.textContent = getModelLabel(autoModel.value);
+  }
+
   await saveAutoPilotConfig();
-  addTerminalLog(`Preferences updated: [Focus: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
+  addTerminalLog(`Configuration updated: [Model: ${getModelLabel(autoModel.value)}] [Focus: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
 }
 
 async function addSource() {
@@ -327,7 +383,7 @@ async function addSource() {
   input.value = '';
   renderSources();
   await saveAutoPilotConfig();
-  addTerminalLog(`Added target source: "${name}" (${type})`);
+  addTerminalLog(`Added source: "${name}" (${type})`);
 }
 
 async function deleteSource(idx) {
@@ -356,9 +412,9 @@ async function saveGeminiKey() {
     const data = await res.json();
     if (data.ok) {
       geminiApiKeyInput.value = '';
-      alert('Gemini API key saved and activated successfully!');
+      alert('Gemini API key saved to .env and activated successfully!');
       loadAutoPilotConfig();
-      addTerminalLog('Google Gemini API Key successfully saved and connected.');
+      addTerminalLog('Google Gemini Pro API key connected and verified.');
     } else {
       alert('Error saving key: ' + (data.error || 'Unknown error'));
     }
@@ -429,10 +485,15 @@ async function loadHistory() {
   try {
     const res = await fetch('/api/autopilot/history');
     const items = await res.json();
+    if (!historyContainer) return;
     historyContainer.innerHTML = '';
 
+    if (statUploadsCount) {
+      statUploadsCount.textContent = items ? items.length : 0;
+    }
+
     if (!items || items.length === 0) {
-      historyContainer.innerHTML = '<div class="empty-state">No automated uploads yet.</div>';
+      historyContainer.innerHTML = '<div class="empty-state">No automated uploads yet. Trigger a run above to publish your first short!</div>';
       return;
     }
 
@@ -442,7 +503,7 @@ async function loadHistory() {
       div.innerHTML = `
         <div class="history-header">
           <span class="history-title">${item.newTitle || 'Uploaded Short'}</span>
-          <a class="history-link" href="${item.newVideoUrl}" target="_blank">View on YouTube ↗</a>
+          <a class="history-link" href="${item.newVideoUrl}" target="_blank" rel="noopener noreferrer">View on YouTube ↗</a>
         </div>
         ${item.aiReasoning ? `<div class="history-reason">"${item.aiReasoning}"</div>` : ''}
         <div class="history-meta">
@@ -463,3 +524,4 @@ async function loadHistory() {
 // ── Initial Boot ─────────────────────────────────────────────────────────
 checkAuth();
 loadAutoPilotConfig();
+loadHistory();
