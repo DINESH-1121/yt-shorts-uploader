@@ -203,6 +203,24 @@
               </select>
             </div>
           </div>
+
+          <div class="grid-2" style="margin-top: 1rem;">
+            <div class="form-group">
+              <label for="auto-niche">🎯 Content Focus</label>
+              <select id="auto-niche" onchange="updateSettings()">
+                <option value="smart_mix">🔀 Smart Mix (Gaming + Hyped Launches)</option>
+                <option value="gaming">🎮 Gaming Clips, Glitches &amp; Highlights</option>
+                <option value="awaited_launches">🚀 Most Awaited Launches (GTA 6, Next-Gen)</option>
+                <option value="trending_now">🔥 Live Trending Viral Shorts</option>
+              </select>
+            </div>
+            <div class="form-group" style="display: flex; flex-direction: column; justify-content: flex-end;">
+              <label class="checkbox-container">
+                <input type="checkbox" id="auto-trending" checked onchange="updateSettings()" />
+                <span>⚡ Auto-Discover Trending Topics via AI</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Sources Manager Card -->

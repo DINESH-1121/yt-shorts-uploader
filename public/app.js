@@ -27,6 +27,8 @@ const geminiStatusText = document.getElementById('gemini-status-text');
 const geminiApiKeyInput = document.getElementById('gemini-api-key');
 const autoSchedule = document.getElementById('auto-schedule');
 const autoPrivacy = document.getElementById('auto-privacy');
+const autoNiche = document.getElementById('auto-niche');
+const autoTrending = document.getElementById('auto-trending');
 const sourcesList = document.getElementById('sources-list');
 const autopilotLog = document.getElementById('autopilot-log');
 const historyContainer = document.getElementById('history-container');
@@ -246,6 +248,10 @@ async function loadAutoPilotConfig() {
     if (autopilotConfig.privacy) {
       autoPrivacy.value = autopilotConfig.privacy;
     }
+    if (autopilotConfig.nicheFocus) {
+      autoNiche.value = autopilotConfig.nicheFocus;
+    }
+    autoTrending.checked = autopilotConfig.autoTrending !== false;
 
     renderSources();
   } catch (err) {
@@ -293,8 +299,10 @@ async function updateSettings() {
   if (!autopilotConfig) return;
   autopilotConfig.schedule = autoSchedule.value;
   autopilotConfig.privacy = autoPrivacy.value;
+  autopilotConfig.nicheFocus = autoNiche.value;
+  autopilotConfig.autoTrending = autoTrending.checked;
   await saveAutoPilotConfig();
-  addTerminalLog('Auto-Pilot preferences updated.');
+  addTerminalLog(`Preferences updated: [Focus: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
 }
 
 async function addSource() {
