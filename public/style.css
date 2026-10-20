@@ -811,7 +811,73 @@ details[open] .chevron {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 380px;
+  max-width: 320px;
+}
+
+.source-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.source-weight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.source-weight-badge:hover,
+.source-weight-badge:focus-within {
+  border-color: rgba(255, 68, 68, 0.4);
+  background: rgba(255, 68, 68, 0.08);
+}
+
+.source-weight-input {
+  width: 38px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-align: right;
+  padding: 0;
+  outline: none;
+}
+
+.weight-unit {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.source-pct-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  min-width: 65px;
+  max-width: 75px;
+}
+
+.source-pct-input-wrap input {
+  width: 100%;
+  padding-right: 1.4rem !important;
+  text-align: right;
+  font-weight: 700;
+}
+
+.source-pct-input-wrap .pct-symbol {
+  position: absolute;
+  right: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  pointer-events: none;
+  font-size: 0.85rem;
 }
 
 .btn-icon-del {
@@ -841,9 +907,9 @@ details[open] .chevron {
   min-width: 140px;
 }
 
-.add-source-form input {
+.add-source-form input[type="text"] {
   flex: 2;
-  min-width: 220px;
+  min-width: 200px;
 }
 
 /* ── History List ─────────────────────────────────────────── */

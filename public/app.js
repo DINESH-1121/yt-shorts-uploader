@@ -692,16 +692,36 @@ async function loadAutoPilotConfig() {
   }
 }
 
+function updateSourcesTotalPill() {
+  const pill = document.getElementById('sources-total-pill');
+  if (!pill || !autopilotConfig || !autopilotConfig.sources) return;
+  const total = autopilotConfig.sources.reduce((acc, s) => acc + (Number(s.percentage) || 0), 0);
+  pill.textContent = `Total: ${total}%`;
+  if (total === 100) {
+    pill.className = 'pill-badge pill-on';
+    pill.title = 'Perfect 100% distribution';
+  } else {
+    pill.className = 'pill-badge pill-off';
+    pill.title = `Total is ${total}% — weights will be scaled proportionally`;
+  }
+}
+
 function renderSources() {
   if (!autopilotConfig || !autopilotConfig.sources || !sourcesList) return;
   sourcesList.innerHTML = '';
 
   if (autopilotConfig.sources.length === 0) {
     sourcesList.innerHTML = '<div class="empty-state">No custom sources added. Dynamic trending topics will be used automatically.</div>';
+    updateSourcesTotalPill();
     return;
   }
 
+  const defaultPct = Math.round(100 / autopilotConfig.sources.length);
+
   autopilotConfig.sources.forEach((src, idx) => {
+    if (typeof src.percentage !== 'number') {
+      src.percentage = defaultPct;
+    }
     const div = document.createElement('div');
     div.className = 'source-item';
     div.setAttribute('role', 'listitem');
@@ -710,54 +730,41 @@ function renderSources() {
         <span class="source-type-tag">${src.type || 'source'}</span>
         <span class="source-name" title="${src.url}">${src.name || src.url}</span>
       </div>
-      <button class="btn-icon-del" onclick="deleteSource(${idx})" aria-label="Remove source ${src.name || src.url}" title="Remove source">✕</button>
+      <div class="source-actions">
+        <div class="source-weight-badge" title="Target percentage of total uploads">
+          <input
+            type="number"
+            min="1"
+            max="100"
+            class="source-weight-input"
+            value="${src.percentage}"
+            onchange="updateSourcePercentage(${idx}, this.value)"
+            aria-label="Percentage weight for ${src.name || src.url}"
+          />
+          <span class="weight-unit">%</span>
+        </div>
+        <button class="btn-icon-del" onclick="deleteSource(${idx})" aria-label="Remove source ${src.name || src.url}" title="Remove source">✕</button>
+      </div>
     `;
     sourcesList.appendChild(div);
   });
+
+  updateSourcesTotalPill();
 }
 
-async function deleteSource(index) {
-  if (!autopilotConfig || !autopilotConfig.sources) return;
-  autopilotConfig.sources.splice(index, 1);
-  renderSources();
+async function updateSourcePercentage(idx, val) {
+  if (!autopilotConfig || !autopilotConfig.sources || !autopilotConfig.sources[idx]) return;
+  const num = Math.max(1, Math.min(100, parseInt(val, 10) || 1));
+  autopilotConfig.sources[idx].percentage = num;
+  updateSourcesTotalPill();
   await saveAutoPilotConfig();
-}
-
-async function toggleAutoPilot(isChecked) {
-  if (!autopilotConfig) return;
-  autopilotConfig.enabled = isChecked;
-
-  toggleLabel.textContent = isChecked ? 'ON' : 'OFF';
-  toggleLabel.classList.toggle('active', isChecked);
-  autopilotIndicator.textContent = isChecked ? 'ACTIVE' : 'OFF';
-  autopilotIndicator.className = isChecked ? 'pill-badge pill-on' : 'pill-badge pill-off';
-  if (statAutopilotStatus) {
-    statAutopilotStatus.textContent = isChecked ? 'Active (ON)' : 'Off';
-    statAutopilotStatus.style.color = isChecked ? 'var(--success)' : 'inherit';
-  }
-
-  await saveAutoPilotConfig();
-  addTerminalLog(`Auto-Pilot scheduler turned ${isChecked ? 'ON' : 'OFF'}.`);
-}
-
-async function updateSettings() {
-  if (!autopilotConfig) return;
-  autopilotConfig.privacy = autoPrivacy.value;
-  autopilotConfig.nicheFocus = autoNiche.value;
-  autopilotConfig.autoTrending = autoTrending.checked;
-  autopilotConfig.geminiModel = autoModel.value;
-
-  if (statModel) {
-    statModel.textContent = getModelLabel(autoModel.value);
-  }
-
-  await saveAutoPilotConfig();
-  addTerminalLog(`Configuration updated: [Model: ${getModelLabel(autoModel.value)}] [Strategy: ${autoNiche.value}] [Auto-Trending: ${autoTrending.checked ? 'ON' : 'OFF'}].`);
+  addTerminalLog(`Updated "${autopilotConfig.sources[idx].name}" target share to ${num}%.`);
 }
 
 async function addSource() {
   const type = document.getElementById('new-source-type').value;
   const input = document.getElementById('new-source-url');
+  const pctInput = document.getElementById('new-source-pct');
   const val = input.value.trim();
 
   if (!val) {
@@ -773,11 +780,13 @@ async function addSource() {
     name = match ? `@${match[1]}` : val;
   }
 
-  autopilotConfig.sources.push({ type, url: val, name });
+  const percentage = Math.max(1, Math.min(100, parseInt(pctInput?.value || 25, 10) || 25));
+
+  autopilotConfig.sources.push({ type, url: val, name, percentage });
   input.value = '';
   renderSources();
   await saveAutoPilotConfig();
-  addTerminalLog(`Added source: "${name}" (${type})`);
+  addTerminalLog(`Added source: "${name}" (${type}) with target ${percentage}%.`);
 }
 
 async function deleteSource(idx) {

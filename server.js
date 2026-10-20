@@ -368,8 +368,8 @@ app.get('/api/upload', async (req, res) => {
     });
     downloadedFile = finalShortPath;
 
-    // Step 2b: Pre-Upload AI Quality Check (AI Slop & Person Name Detection using OpenCode)
-    sendEvent('progress', { message: '🛡️ Running AI Quality Check (evaluating AI slop & person names with OpenCode)...' });
+    // Step 2b: Pre-Upload AI Quality Check (AI Slop & On-Screen Channel Watermarks)
+    sendEvent('progress', { message: '🛡️ Running AI Quality Check (evaluating AI slop & on-screen channel watermarks with OpenCode)...' });
     const config = getConfig();
     const modelToUse = normalizeModelName(config.geminiModel || 'opencode/nemotron-3.5-super-vl-free');
     const qualityResult = await checkVideoQuality({

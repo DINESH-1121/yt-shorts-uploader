@@ -484,12 +484,13 @@
           <div class="flex-between">
             <div>
               <h3>🎯 Target Channels &amp; Custom Queries</h3>
-              <p class="subtitle">The scanner evaluates videos from these sources alongside AI-generated trending queries</p>
+              <p class="subtitle">Set percentage targets for each content source to control your upload mix</p>
             </div>
+            <div id="sources-total-pill" class="pill-badge pill-on" title="Total percentage distribution">Total: 100%</div>
           </div>
 
           <div id="sources-list" class="sources-list" role="list">
-            <!-- Dynamically populated -->
+            <!-- Dynamically populated with weight % inputs -->
           </div>
 
           <div class="add-source-form">
@@ -500,9 +501,22 @@
             <input
               type="text"
               id="new-source-url"
-              placeholder="e.g. 'GTA 6 gameplay graphics' or https://youtube.com/@Channel/shorts"
+              placeholder="e.g. 'Anime edits' or 'GTA 6' or https://youtube.com/@Channel/shorts"
               aria-label="Source URL or Keyword"
             />
+            <div class="source-pct-input-wrap">
+              <input
+                type="number"
+                id="new-source-pct"
+                min="1"
+                max="100"
+                value="25"
+                placeholder="%"
+                title="Target percentage of uploads"
+                aria-label="Target percentage of uploads"
+              />
+              <span class="pct-symbol">%</span>
+            </div>
             <button class="btn btn-secondary" onclick="addSource()">+ Add Source</button>
           </div>
         </div>
