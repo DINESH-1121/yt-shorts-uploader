@@ -23,6 +23,23 @@ const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 const TOKENS_PATH = path.join(__dirname, 'tokens.json');
 if (!fs.existsSync(DOWNLOADS_DIR)) fs.mkdirSync(DOWNLOADS_DIR);
 
+function cleanupStaleDownloads() {
+  try {
+    if (!fs.existsSync(DOWNLOADS_DIR)) return;
+    const files = fs.readdirSync(DOWNLOADS_DIR);
+    const now = Date.now();
+    for (const f of files) {
+      const fullPath = path.join(DOWNLOADS_DIR, f);
+      const stat = fs.statSync(fullPath);
+      // Clean up orphaned .part files or temp mp4 files older than 15 minutes
+      if ((f.endsWith('.part') || f.endsWith('.mp4')) && (now - stat.mtimeMs > 15 * 60 * 1000)) {
+        try { fs.unlinkSync(fullPath); console.log('[Storage] 🗑️ Cleaned stale download file:', f); } catch {}
+      }
+    }
+  } catch {}
+}
+cleanupStaleDownloads();
+
 // ── Resolve yt-dlp binary path ───────────────────────────────────────────
 const YT_DLP = (() => {
   const candidates = [
@@ -139,43 +156,18 @@ function validateUrl(url) {
 }
 
 /**
- * Download video using yt-dlp. Returns { filePath, metadata }
+ * Download video using yt-dlp in a single optimized pass without compromising resolution or bitrate.
+ * Returns { filePath, metadata }
  */
-function downloadVideo(url, onProgress) {
+function downloadVideo(url, onProgress, existingMetadata = null) {
   return new Promise((resolve, reject) => {
     const timestamp = Date.now();
     const outputTemplate = path.join(DOWNLOADS_DIR, `${timestamp}_%(id)s.%(ext)s`);
 
-    // First, get metadata (metadata only: no format selection needed)
-    const metaArgs = [
-      '--no-warnings',
-      '--skip-download',
-      ...authArgs(),
-      '--print', '%(title)s',
-      '--print', '%(id)s',
-      '--print', '%(ext)s',
-      '--print', '%(description).200s',
-      '--no-playlist',
-      url,
-    ];
+    const startDownload = (metadata) => {
+      onProgress?.('Downloading video in High Quality (1080p60 / 4K)...');
 
-    onProgress?.('Fetching video info (Highest Quality Stream)...');
-
-    execFile(YT_DLP, metaArgs, { timeout: 60000 }, (err, stdout, stderr) => {
-      if (err) {
-        console.error('yt-dlp meta error:', err.message, stderr);
-        return reject(new Error('Failed to fetch video info. Details: ' + describeError(stderr || err.message)));
-      }
-
-      const lines = stdout.trim().split('\n');
-      const title = lines[0] || 'Untitled';
-      const id = lines[1] || 'unknown';
-      const ext = lines[2] || 'mp4';
-      const description = lines.slice(3).join('\n') || '';
-
-      onProgress?.(`Found: "${title}"`);
-
-      // Now download with absolute maximum resolution, frame rate, and bitrate
+      // Uncompromised studio stream selection: best video + best audio, sorted by resolution and bitrate
       const dlArgs = [
         '--no-warnings',
         '--newline',
@@ -187,8 +179,6 @@ function downloadVideo(url, onProgress) {
         '-o', outputTemplate,
         url,
       ];
-
-      onProgress?.('Downloading video in High Quality (1080p60 / 4K)...');
 
       const dl = spawn(YT_DLP, dlArgs);
       let dlStderr = '';
@@ -217,26 +207,63 @@ function downloadVideo(url, onProgress) {
 
         // Find the downloaded file
         const possibleFiles = fs.readdirSync(DOWNLOADS_DIR)
-          .filter(f => f.startsWith(`${timestamp}_`))
+          .filter(f => f.startsWith(`${timestamp}_`) && !f.endsWith('.part'))
           .map(f => path.join(DOWNLOADS_DIR, f));
 
         if (possibleFiles.length === 0) {
           // Fallback: look for any file with the video id
           const fallbackFiles = fs.readdirSync(DOWNLOADS_DIR)
-            .filter(f => f.includes(id))
+            .filter(f => f.includes(metadata.id) && !f.endsWith('.part'))
             .map(f => path.join(DOWNLOADS_DIR, f));
 
           if (fallbackFiles.length === 0) {
             return reject(new Error('Downloaded file not found on disk'));
           }
-          return resolve({ filePath: fallbackFiles[0], metadata: { title, id, description } });
+          return resolve({ filePath: fallbackFiles[0], metadata });
         }
 
         resolve({
           filePath: possibleFiles[0],
-          metadata: { title, id, description },
+          metadata,
         });
       });
+    };
+
+    // If metadata was already provided (e.g. from AutoPilot scan), skip the extra network metadata call!
+    if (existingMetadata && existingMetadata.id) {
+      onProgress?.(`Found: "${existingMetadata.title || 'Video'}"`);
+      return startDownload(existingMetadata);
+    }
+
+    // Otherwise, fetch metadata quickly in single pass
+    const metaArgs = [
+      '--no-warnings',
+      '--skip-download',
+      ...authArgs(),
+      '--print', '%(title)s',
+      '--print', '%(id)s',
+      '--print', '%(ext)s',
+      '--print', '%(description).200s',
+      '--no-playlist',
+      url,
+    ];
+
+    onProgress?.('Fetching video info (Highest Quality Stream)...');
+
+    execFile(YT_DLP, metaArgs, { timeout: 60000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('yt-dlp meta error:', err.message, stderr);
+        return reject(new Error('Failed to fetch video info. Details: ' + describeError(stderr || err.message)));
+      }
+
+      const lines = stdout.trim().split('\n');
+      const title = lines[0] || 'Untitled';
+      const id = lines[1] || 'unknown';
+      const ext = lines[2] || 'mp4';
+      const description = lines.slice(3).join('\n') || '';
+
+      onProgress?.(`Found: "${title}"`);
+      startDownload({ title, id, ext, description });
     });
   });
 }
@@ -361,19 +388,12 @@ app.get('/api/upload', async (req, res) => {
 
     sendEvent('progress', { message: `Optimized Title: "${uploadMetadata.title}"` });
 
-    // Step 2: Ensure Strict 9:16 Vertical Shorts Format (Duration <= 60s)
-    sendEvent('progress', { message: '🎨 Verifying video format for YouTube Shorts (9:16 vertical, <= 60s)...' });
-    const finalShortPath = await ensureShortsFormat(filePath, (fmtMsg) => {
-      sendEvent('progress', { message: fmtMsg });
-    });
-    downloadedFile = finalShortPath;
-
-    // Step 2b: Pre-Upload AI Quality Check (AI Slop & On-Screen Channel Watermarks)
+    // Step 2: Pre-Upload AI Quality Check (evaluating AI slop & on-screen channel watermarks BEFORE transcoding)
     sendEvent('progress', { message: '🛡️ Running AI Quality Check (evaluating AI slop & on-screen channel watermarks with OpenCode)...' });
     const config = getConfig();
     const modelToUse = normalizeModelName(config.geminiModel || 'opencode/nemotron-3.5-super-vl-free');
     const qualityResult = await checkVideoQuality({
-      videoPath: finalShortPath,
+      videoPath: filePath,
       metadata: {
         title: finalTitle,
         originalTitle: metadata.title,
@@ -395,6 +415,13 @@ app.get('/api/upload', async (req, res) => {
     }
 
     sendEvent('progress', { message: `✅ AI Quality Check passed: ${qualityResult.reason}` });
+
+    // Step 2b: Ensure Strict 9:16 Vertical Shorts Format (Duration <= 60s) — only for verified clips
+    sendEvent('progress', { message: '🎨 Verifying video format for YouTube Shorts (9:16 vertical, <= 60s)...' });
+    const finalShortPath = await ensureShortsFormat(filePath, (fmtMsg) => {
+      sendEvent('progress', { message: fmtMsg });
+    });
+    downloadedFile = finalShortPath;
 
     // Step 3: Upload to YouTube
     const result = await uploadToYouTube(finalShortPath, uploadMetadata, (msg) => {
