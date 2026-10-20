@@ -69,6 +69,10 @@
         <span class="stat-label">Uploaded Shorts</span>
         <span class="stat-val" id="stat-uploads-count">0</span>
       </div>
+      <div class="stat-card">
+        <span class="stat-label">Quality Checker</span>
+        <span class="stat-val highlight" style="color: #10b981;">🛡️ OpenCode Guard</span>
+      </div>
     </section>
 
     <!-- Navigation Tabs -->
@@ -434,6 +438,7 @@
             <div id="cadence-panel-preset" class="cadence-mode-view hidden">
               <label class="cadence-input-label" for="auto-schedule">Select standard interval preset:</label>
               <select id="auto-schedule" onchange="onPresetDropdownChange()">
+                <option value="every-1m">Every 1 Minute (High Frequency / Testing)</option>
                 <option value="every-15m">Every 15 Minutes (High Velocity)</option>
                 <option value="every-30m">Every 30 Minutes (Rapid testing)</option>
                 <option value="every-1h">Every 1 Hour</option>

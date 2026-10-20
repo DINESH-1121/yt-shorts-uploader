@@ -867,20 +867,39 @@ async function loadHistory() {
     items.forEach(item => {
       const div = document.createElement('div');
       div.className = 'history-item';
-      div.innerHTML = `
-        <div class="history-header">
-          <span class="history-title">${item.newTitle || 'Uploaded Short'}</span>
-          <a class="history-link" href="${item.newVideoUrl}" target="_blank" rel="noopener noreferrer">View on YouTube ↗</a>
-        </div>
-        ${item.aiReasoning ? `<div class="history-reason">"${item.aiReasoning}"</div>` : ''}
-        <div class="history-meta">
-          <span>Source: ${item.sourceTitle || item.sourceUrl}</span>
-          <span>•</span>
-          <span>${item.uploadedAt ? new Date(item.uploadedAt).toLocaleDateString() : ''}</span>
-          <span>•</span>
-          <span>Privacy: ${item.privacy || 'private'}</span>
-        </div>
-      `;
+      if (item.status === 'rejected') {
+        div.innerHTML = `
+          <div class="history-header">
+            <span class="history-title" style="color: #f87171;">🛑 Rejected: ${item.sourceTitle || 'Video'}</span>
+            <span class="pill-badge pill-off" style="font-size: 0.72rem; letter-spacing: 0.05em;">AI CHECK REJECTED</span>
+          </div>
+          <div class="history-reason" style="color: #fca5a5; font-size: 0.85rem; margin-top: 6px; line-height: 1.4;">
+            <strong>Quality Check:</strong> ${item.rejectReason || 'Rejected by AI Quality Check (AI Slop or Person Name detected)'}
+          </div>
+          <div class="history-meta">
+            <span>Source: ${item.sourceTitle || item.sourceUrl}</span>
+            <span>•</span>
+            <span>Creator: ${item.uploader || 'Unknown'}</span>
+            <span>•</span>
+            <span>${item.uploadedAt ? new Date(item.uploadedAt).toLocaleDateString() : ''}</span>
+          </div>
+        `;
+      } else {
+        div.innerHTML = `
+          <div class="history-header">
+            <span class="history-title">${item.newTitle || 'Uploaded Short'}</span>
+            <a class="history-link" href="${item.newVideoUrl}" target="_blank" rel="noopener noreferrer">View on YouTube ↗</a>
+          </div>
+          ${item.aiReasoning ? `<div class="history-reason">"${item.aiReasoning}"</div>` : ''}
+          <div class="history-meta">
+            <span>Source: ${item.sourceTitle || item.sourceUrl}</span>
+            <span>•</span>
+            <span>${item.uploadedAt ? new Date(item.uploadedAt).toLocaleDateString() : ''}</span>
+            <span>•</span>
+            <span>Privacy: ${item.privacy || 'private'}</span>
+          </div>
+        `;
+      }
       historyContainer.appendChild(div);
     });
   } catch (err) {

@@ -16,6 +16,7 @@ const { listFreeModels } = require('./lib/aiClient');
 const { getScheduleInfo, buildCronFromCadence } = require('./lib/cadence');
 const { ensureShortsFormat } = require('./lib/shortsFormatter');
 const { authArgs, describeError } = require('./lib/ytdlp');
+const { checkVideoQuality } = require('./lib/qualityChecker');
 
 // ── Directories ──────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
@@ -367,6 +368,34 @@ app.get('/api/upload', async (req, res) => {
     });
     downloadedFile = finalShortPath;
 
+    // Step 2b: Pre-Upload AI Quality Check (AI Slop & Person Name Detection using OpenCode)
+    sendEvent('progress', { message: '🛡️ Running AI Quality Check (evaluating AI slop & person names with OpenCode)...' });
+    const config = getConfig();
+    const modelToUse = normalizeModelName(config.geminiModel || 'opencode/nemotron-3.5-super-vl-free');
+    const qualityResult = await checkVideoQuality({
+      videoPath: finalShortPath,
+      metadata: {
+        title: finalTitle,
+        originalTitle: metadata.title,
+        description: finalDescription,
+        originalDescription: metadata.description,
+        uploader: metadata.uploader
+      },
+      model: modelToUse,
+      onProgress: (qcMsg) => sendEvent('progress', { message: qcMsg })
+    });
+
+    if (qualityResult.decision === 'REJECT') {
+      console.warn('[Server] Manual upload rejected by AI Quality Check:', qualityResult.reason);
+      sendEvent('error', {
+        message: `Upload rejected by AI Quality Check: ${qualityResult.reason}`,
+        qualityCheck: qualityResult
+      });
+      return;
+    }
+
+    sendEvent('progress', { message: `✅ AI Quality Check passed: ${qualityResult.reason}` });
+
     // Step 3: Upload to YouTube
     const result = await uploadToYouTube(finalShortPath, uploadMetadata, (msg) => {
       sendEvent('progress', { message: msg });
@@ -543,6 +572,77 @@ app.post('/api/ai/preview-metadata', async (req, res) => {
       res.status(500).json({ error: 'AI generation error: ' + aiErr.message });
     }
   });
+});
+
+// Quality Check Preview endpoint
+app.post('/api/quality/check', async (req, res) => {
+  const { url, title, description, uploader } = req.body;
+  const config = getConfig();
+  const modelToUse = normalizeModelName(config.geminiModel || 'opencode/nemotron-3.5-super-vl-free');
+
+  if (!url && !title) {
+    return res.status(400).json({ error: 'Either url or title is required for quality check' });
+  }
+
+  try {
+    let checkTitle = title || '';
+    let checkDesc = description || '';
+    let checkUploader = uploader || '';
+    let videoFilePath = null;
+
+    if (url && validateUrl(url)) {
+      // Extract metadata via yt-dlp
+      const meta = await new Promise((resolve) => {
+        execFile(YT_DLP, [
+          '--no-warnings',
+          '--skip-download',
+          ...authArgs(),
+          '--print', '%(title)s',
+          '--print', '%(uploader)s',
+          '--print', '%(description).300s',
+          '--no-playlist',
+          url
+        ], { timeout: 30000 }, (err, stdout) => {
+          if (err || !stdout) return resolve(null);
+          const lines = stdout.trim().split('\n');
+          resolve({
+            title: lines[0] || '',
+            uploader: lines[1] || '',
+            description: lines.slice(2).join('\n') || ''
+          });
+        });
+      });
+
+      if (meta) {
+        if (!checkTitle) checkTitle = meta.title;
+        if (!checkUploader) checkUploader = meta.uploader;
+        if (!checkDesc) checkDesc = meta.description;
+      }
+    }
+
+    const checkResult = await checkVideoQuality({
+      videoPath: videoFilePath || '',
+      metadata: {
+        title: checkTitle,
+        description: checkDesc,
+        uploader: checkUploader,
+        sourceUrl: url || ''
+      },
+      model: modelToUse
+    });
+
+    res.json({
+      ok: true,
+      decision: checkResult.decision,
+      isAiSlop: checkResult.isAiSlop,
+      hasPersonName: checkResult.hasPersonName,
+      detectedNames: checkResult.detectedNames,
+      reason: checkResult.reason,
+      usedModel: checkResult.usedModel
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // ── Start Server ─────────────────────────────────────────────────────────
