@@ -173,6 +173,9 @@ function downloadVideo(url, onProgress, existingMetadata = null) {
         '--newline',
         ...authArgs(),
         '--no-playlist',
+        '--no-live-from-start',
+        '--match-filter', '!is_live & !was_live & live_status =? "not_live"',
+        '--max-filesize', '250M', // Protect against runaway live recordings or full movies
         '-f', 'bv*+ba/b',
         '--format-sort', 'res,fps,br,size',
         '--merge-output-format', 'mp4',
@@ -182,6 +185,14 @@ function downloadVideo(url, onProgress, existingMetadata = null) {
 
       const dl = spawn(YT_DLP, dlArgs);
       let dlStderr = '';
+
+      // 90-second download watchdog: aborts runaway downloads (e.g. infinite live streams)
+      const downloadTimer = setTimeout(() => {
+        try {
+          dl.kill('SIGKILL');
+          console.warn('[Downloader] ⏱️ Download timed out after 90s — aborting runaway stream.');
+        } catch {}
+      }, 90000);
 
       dl.stdout.on('data', (data) => {
         const line = data.toString().trim();
@@ -196,12 +207,20 @@ function downloadVideo(url, onProgress, existingMetadata = null) {
       });
 
       dl.on('error', (err) => {
+        clearTimeout(downloadTimer);
         reject(new Error('Failed to spawn yt-dlp: ' + err.message));
       });
 
       dl.on('close', (code) => {
+        clearTimeout(downloadTimer);
         if (code !== 0) {
           console.error('yt-dlp download stderr:', dlStderr);
+          // Clean up any partial files
+          try {
+            fs.readdirSync(DOWNLOADS_DIR)
+              .filter(f => f.startsWith(`${timestamp}_`) && f.endsWith('.part'))
+              .forEach(f => fs.unlinkSync(path.join(DOWNLOADS_DIR, f)));
+          } catch {}
           return reject(new Error('Download failed: ' + describeError(dlStderr || `exit code ${code}`)));
         }
 
