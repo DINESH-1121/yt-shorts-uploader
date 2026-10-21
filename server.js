@@ -262,7 +262,9 @@ function downloadVideo(url, onProgress, existingMetadata = null) {
       '--print', '%(title)s',
       '--print', '%(id)s',
       '--print', '%(ext)s',
-      '--print', '%(description).200s',
+      '--print', '%(uploader)s',
+      '--print', '%(channel_url)s',
+      '--print', '%(description).300s',
       '--no-playlist',
       url,
     ];
@@ -279,10 +281,12 @@ function downloadVideo(url, onProgress, existingMetadata = null) {
       const title = lines[0] || 'Untitled';
       const id = lines[1] || 'unknown';
       const ext = lines[2] || 'mp4';
-      const description = lines.slice(3).join('\n') || '';
+      const uploader = lines[3] || 'Creator';
+      const channelUrl = lines[4] || '';
+      const description = lines.slice(5).join('\n') || '';
 
-      onProgress?.(`Found: "${title}"`);
-      startDownload({ title, id, ext, description });
+      onProgress?.(`Found: "${title}" by ${uploader}`);
+      startDownload({ title, id, ext, uploader, channelUrl, description, sourceUrl: url });
     });
   });
 }
