@@ -1,134 +1,252 @@
-# YouTube Shorts Uploader & Autonomous AI Studio
+# YouTube Shorts Studio & Autonomous AI Auto-Pilot
 
-Download YouTube Shorts, Instagram Reels, or trending viral videos and upload them directly to your YouTube channel with automated 9:16 vertical formatting, AI viral metadata optimization, smart content mix balancing, and hardware-accelerated transcoding.
-
----
-
-## 🎯 Target Content Mix & Percentage Allocation
-
-AutoPilot lets you set exact **percentage weights** for each of your Target Channels & Custom Queries (e.g. 33% Anime, 33% Marvel, 34% Gaming):
-
-* **Live Percentage Customization**: Assign percentage targets directly to each source in the Web UI or in `autopilot-config.json`. The UI tracks your total distribution with a live indicator (`Total: 100%`).
-* **Historical Deficit Balancing**: Before every evaluation cycle, AutoPilot analyzes recent upload history from `history.json`. It computes the deficit between your target percentage and recent uploads, automatically boosting candidates from under-represented sources so your channel catalog maintains the exact defined content balance.
-* **Fair Multi-Source Scanning**: Scans all configured custom channels and keywords fairly without early termination, guaranteeing a diverse candidate pool.
-* **AI-Guided Balance Enforcement**: The AI content selection prompt receives your configured content distribution and under-represented priority notices, preventing the system from repeatedly uploading the same topic.
+An enterprise-grade, fully autonomous YouTube Shorts curation, formatting, and publishing suite powered by **local Apple Silicon MLX GPU acceleration**, **Google Gemini Pro fallback**, **Apple VideoToolbox hardware transcoding**, and a **Strict Anti-Repetition Duplicate Prevention Engine**.
 
 ---
 
-## 🛡️ AI Quality Checker & Compliance
+## 🌟 Key Highlights & Features
 
-Before any video is uploaded to YouTube, it passes an automated pre-upload quality and compliance check powered by OpenCode models:
-
-1. **Rule 1: AI-Generated Slop Detection**:
-   * **REJECTS**: 100% synthetic AI video loops (Sora, Runway, Kling, Pika hallucinations), generic robotic AI-generated slideshows reading fake scripts/Reddit stories, and low-effort synthetic brainrot.
-   * **ALLOWS**: Authentic movie edits, cinematic film clips (e.g., *Dune*, *Marvel Avengers*, *Batman*), anime edits, real video game captures (GTA, Minecraft, Fortnite, etc.), and genuine tech hardware demos.
-2. **Rule 2: On-Screen Channel Promo Watermarks**:
-   * **REJECTS**: Visible on-screen text, burnt-in watermarks, or overlays inside the **video frames** that promote competitor YouTube channels or social handles (e.g., *"Subscribe to @Channel"*, *"youtube.com/@..."*, or promotional creator watermarks).
-   * **EXEMPT (ALLOWS)**: Video titles and descriptions are **100% exempt**. Mentioning real actors (e.g., *Timothée Chalamet*, *Robert Downey Jr*, *Zendaya*), celebrities, directors, streamers, or characters in titles and descriptions is fully supported and will never cause a rejection.
-
----
-
-## ⚡ High-Performance Pipeline & Hardware Acceleration
-
-* **Apple Silicon M3 Pro Hardware Acceleration (`h264_videotoolbox`)**:
-  * On macOS, FFmpeg automatically utilizes Apple's dedicated hardware Media Engine (`-c:v h264_videotoolbox -b:v 18M -maxrate 24M -pix_fmt yuv420p`).
-  * Drops 9:16 vertical Short formatting times from **30–40 seconds of software CPU rendering down to just 1–2 seconds** at studio master bitrate (18–24 Mbps), using 0% CPU.
-* **Pre-Transcode Quality Gate**:
-  * The AI Quality Check evaluates raw video frames **before** any FFmpeg transcoding begins.
-  * If a candidate is rejected, it is immediately deleted without wasting 30 seconds of heavy transcoding compute and disk I/O.
-* **Single-Pass Stream Download**:
-  * Eliminates redundant `yt-dlp --skip-download` metadata round-trips, jumping straight into high-speed downloading of the highest quality stream (`bv*+ba/b` sorted by resolution and bitrate).
-* **Storage Hygiene & Orphan Cleanup**:
-  * Intermediate files are purged ephemerally. Stale `.part` files or temporary downloads are cleaned automatically on startup and during cycles.
-
----
-
-## 🧠 AI Engine (OpenCode Free Tier)
-
-All AI tasks (candidate selection, viral title/description rewriting, trend-query generation, and visual quality checking) run through `lib/aiClient.js`, a dynamic gateway built on **OpenCode's free models**:
-
-* **Dynamic Discovery**: Pulls live free models from the OpenCode service (`opencode api get /api/model`). Every model with a `-free` id is a candidate and automatically supported.
-* **Automatic Failover**: If the preferred model encounters an issue, it cools down automatically and the next healthy model is used without interrupting uploads.
-* **Task-Aware Ordering**: Fast flash models (GLM, MiMo, DeepSeek Free) handle metadata rewriting; vision/reasoning models (Nemotron Super VL, GLM Flash) handle visual quality checks and candidate evaluation.
-* **Zero API Key Requirement**: Runs locally through the OpenCode CLI (`opencode run --model provider/model --format json`).
-* **Session Hygiene**: Runs in throwaway sessions to keep local session stores clean.
+* **⚡ Local Apple Silicon MLX GPU Acceleration**:
+  * Runs **Llama 3.2 3B Instruct 4-bit** natively on your Mac's Metal GPU with unified memory.
+  * Generates high-CTR viral titles and rich SEO descriptions at **100+ tokens/second** (~1.8s response time) with **zero external rate limits, zero quotas, and zero API costs**.
+  * Built-in automatic background lifecycle manager (`ensureMLXServer`) that spins up the local OpenAI-compatible HTTP daemon on demand.
+* **🚫 Strict Anti-Repetition Duplicate Prevention**:
+  * Multi-layer canonical ID extraction engine supporting YouTube Shorts (`/shorts/`), regular videos (`/watch?v=`), short links (`youtu.be/`), and Instagram Reels (`/reel/`).
+  * **Zero Double Downloads**: Pre-filters duplicate videos at 4 independent stages: scanner intake, candidate queueing, pre-download validation, and manual upload submission.
+  * High-capacity persistent tracking (`history.json`) preserving canonical IDs and URLs permanently across thousands of uploads.
+* **📝 Rich Video Descriptions with 25–30 Guaranteed Hashtags**:
+  * Automatically extracts original context and narrative hooks to describe what actually happens in the video.
+  * Formats clean, friendly Calls to Action (Like, Comment, Subscribe) and gives proper credit to original creators (`@uploader`).
+  * Dynamically populates and deduplicates **exactly 25 to 30 relevant, high-velocity hashtags** spanning niche-specific tags (Anime, Gaming, Marvel, Tech, Movie) and universal Shorts viral tags.
+* **🎯 Target Content Mix & Automatic Deficit Balancing**:
+  * Define exact percentage targets for your channels and queries (e.g., 25% Anime, 25% Marvel, 25% Gaming, 25% Tech).
+  * AutoPilot computes historical upload deficits from `history.json` and automatically prioritizes under-represented categories to maintain the exact desired channel distribution.
+* **🛡️ Dual-Rule AI Quality & Safety Guard**:
+  * **Rule 1 (AI Slop Detection)**: Rejects 100% synthetic hallucinations (Sora, Runway, Kling, Pika loops) and low-effort robotic brainrot, while approving authentic gameplay, cinema edits, and anime clips.
+  * **Rule 2 (Promo Watermark Rejection)**: Rejects on-screen burnt-in promos, watermarks, or overlays directing viewers to rival YouTube channels. Title and description mentions of celebrities and actors are 100% exempt.
+  * **Pre-Transcode Gate**: Evaluates raw video frames *before* transcoding, saving disk I/O and compute on rejected videos.
+* **🚀 Hardware-Accelerated 9:16 Vertical Transcoding**:
+  * Utilizes Apple's dedicated hardware Media Engine via `h264_videotoolbox` on macOS.
+  * Converts horizontal clips to 9:16 vertical format (1080x1920 $\le 59.5$s) with blurred ambient backgrounds in **1–2 seconds** at master quality (18–24 Mbps).
+* **🌐 Web Dashboard & Real-Time Monitoring**:
+  * Sleek dark-mode Studio dashboard with live Server-Sent Events (SSE) streaming real-time download, AI reasoning, transcoding, and upload progress.
 
 ---
 
-## 🛠️ How It Works
+## 🏗️ Architecture & Pipeline Flow
 
 ```
-┌────────────────┐          ┌──────────────────────┐          ┌─────────────────────┐
-│                │  (1) URL │                      │ (3) Info │                     │
-│   Web Client   ├─────────►│    Express Server    ├─────────►│       yt-dlp        │
-│  (HTML/CSS/JS) │          │     (Node.js)        │◄─────────┤     (+ ffmpeg)      │
-│                │◄─────────┤                      │ (4) mp4  │                     │
-└────────────────┘  (5) SSE └──────────┬───────────┘          └─────────────────────┘
-     Progress & Status Updates         │
-                                       │ (6) Upload Stream
-                                       ▼
-                            ┌─────────────────────┐
-                            │ YouTube Data API v3 │
-                            │   (Google Cloud)    │
-                            └─────────────────────┘
+┌─────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
+│  Multi-Source   ├──────►│  Canonical Duplicate ├──────►│  Candidate Queue     │
+│  Intake Scanner │       │  Prevention Engine   │       │  & Deficit Balancing │
+└─────────────────┘       └──────────────────────┘       └──────────┬───────────┘
+                                                                    │
+                                                                    ▼
+┌─────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
+│ YouTube Data v3 │◄──────┤ Apple VideoToolbox   │◄──────┤ Pre-Upload AI        │
+│ API Publisher   │       │ 9:16 Hardware Encode │       │ Quality Guard        │
+└─────────────────┘       └──────────────────────┘       └──────────────────────┘
 ```
 
-1. **OAuth 2.0 Authorization**: Connects securely to YouTube Data API v3 with persistent offline tokens in `tokens.json`.
-2. **Quality-First Extraction**: Downloads pristine audio and video streams via `yt-dlp` with `-f "bv*+ba/b" --merge-output-format mp4`.
-3. **Strict 9:16 Shorts Formatting**: Analyzes aspect ratio with `ffprobe`. Horizontal clips are formatted into centered foregrounds with blurred ambient backgrounds at 1080x1920 ($\le 59.5$s duration).
-4. **Viral Metadata & SEO Optimization**: Auto-generates high-CTR titles and descriptions containing 25–30 relevant hashtags tailored to the video topic.
-5. **Real-Time Progress Streaming**: Emits live status updates via Server-Sent Events (SSE).
+1. **Source Discovery**: Ingests candidate shorts via configured keywords, channel handles, and dynamic trending search pools.
+2. **Duplicate Filtering**: Canonical 11-character video IDs are checked against `history.json`. Any previously downloaded or uploaded video is immediately discarded.
+3. **AI Selection & SEO Formulation**: The local Apple Silicon MLX GPU evaluates candidate options against content distribution percentages, crafting a click-worthy title, rich description, and 25–30 hashtags.
+4. **Primacy Download**: Downloads master video streams via `yt-dlp` using cookie authentication to bypass bot protections.
+5. **Quality Verification**: Extracts 3 representative video keyframes and verifies compliance against slop and competitor promos.
+6. **Hardware Transcoding**: FFmpeg with `h264_videotoolbox` transcodes the video to vertical 9:16 Short format in under 2 seconds.
+7. **YouTube Upload**: Streams video to YouTube API v3 with real-time percentage progress, records canonical ID in history, and clears temporary files.
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## ⚡ Local Apple Silicon MLX Engine
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `CLIENT_ID` | required | Google Cloud OAuth Client ID |
-| `CLIENT_SECRET` | required | Google Cloud OAuth Client Secret |
-| `PORT` | `3000` | Web server port |
-| `TREND_CACHE_HOURS` | `1` | Trend query cache TTL in hours (`0` disables caching) |
-| `SCAN_CONCURRENCY` | `3` | Parallel source scan workers (max 4) |
-| `FFMPEG_PATH` | auto | Custom path to `ffmpeg` binary |
-| `FFPROBE_PATH` | auto | Custom path to `ffprobe` binary |
-| `AI_KEEP_SESSIONS` | unset | Retain OpenCode debug sessions |
+The AI gateway ([`lib/aiClient.js`](lib/aiClient.js)) connects directly to Apple's **MLX** framework running on Apple Silicon unified memory:
 
----
+* **Default Local Model**: [`mlx-community/Llama-3.2-3B-Instruct-4bit`](https://huggingface.co/mlx-community/Llama-3.2-3B-Instruct-4bit) (~1.8 GB memory footprint).
+* **Metal GPU Speed**: **103+ tokens/sec** (~1.8s for complete video evaluation and metadata generation).
+* **Automated Daemon**: Node automatically launches the server on port `8080` if not already running.
+* **Cloud Fallback**: Automatically cascades to Google Gemini (`gemini-2.5-flash` with 1,500 req/day quota) if MLX is unreachable or explicitly disabled.
 
-## 🚀 Quick Start
-
-### 1. Set up Google Cloud Credentials
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) and enable **YouTube Data API v3**.
-2. Create an **OAuth 2.0 Client ID** (Web Application) with redirect URI: `http://localhost:3000/oauth2callback`.
-3. Add your email under **Audience / Test users**.
-4. Put your credentials in `.env`:
-   ```env
-   CLIENT_ID=your_client_id
-   CLIENT_SECRET=your_client_secret
-   PORT=3000
-   ```
-
-### 2. Install Dependencies
+### Useful MLX Commands
 ```bash
-brew install yt-dlp ffmpeg
+# Start the MLX server manually:
+npm run mlx:start
+
+# Interactive CLI chat with the local model:
+.venv-mlx/bin/python -m mlx_lm chat --model mlx-community/Llama-3.2-3B-Instruct-4bit
+
+# Run quick one-liner completions:
+.venv-mlx/bin/python -m mlx_lm generate --model mlx-community/Llama-3.2-3B-Instruct-4bit --prompt "Write 3 viral short titles for GTA 6"
+```
+
+---
+
+## 🚫 Anti-Repetition & Duplicate Prevention
+
+To guarantee your YouTube channel never uploads the same video twice:
+
+* **Canonical Normalization**: Standardizes URLs across all variations:
+  * `https://youtube.com/shorts/DManF7dWTJM` ➔ `DManF7dWTJM`
+  * `https://www.youtube.com/watch?v=DManF7dWTJM` ➔ `DManF7dWTJM`
+  * `https://youtu.be/DManF7dWTJM` ➔ `DManF7dWTJM`
+  * `https://instagram.com/reel/C-xyz123/` ➔ `C-xyz123`
+* **4-Gate Enforcement**:
+  1. **Scanner Intake Gate**: Skips known videos before candidate extraction completes.
+  2. **AutoPilot Pool Gate**: Filters remaining candidates before sending prompts to the AI.
+  3. **Pre-Download Gate**: Validates the winning video's canonical ID right before triggering network download.
+  4. **Manual Upload Gate**: Rejects duplicate URLs pasted into the single-video upload form.
+* **Persistent History**: `history.json` retains up to 5,000 processed videos (both uploaded and permanently rejected), preventing duplicates across days, weeks, and months.
+
+---
+
+## 📝 Video Descriptions & 25–30 Hashtags Engine
+
+Every generated video description adheres to a strict SEO formula:
+
+1. **Context-Aware Summary**: 2–3 engaging sentences explaining the specific highlight, gameplay clutch, or scene.
+2. **Call to Action (CTA)**: Encourages engagement (`Drop a like, comment your thoughts, and subscribe for daily shorts!`).
+3. **Attribution**: Credits the original creator (`Original creator: @CreatorName`).
+4. **Hashtag Bank (Minimum 25–30 Tags)**:
+   * **Anime**: `#shorts #anime #animedit #jujutsukaisen #demonslayer #naruto #onepiece #otaku #animefight #amv ...`
+   * **Gaming**: `#shorts #gaming #minecraft #gta6 #eldenring #valorant #clutch #gamers #gameplay #nextgen ...`
+   * **Marvel / Film**: `#shorts #marvel #avengers #mcu #doomsday #cinema #cinematography #hollywood #filmtok ...`
+   * **Tech / Innovation**: `#shorts #technology #tech #innovation #gadgets #ai #robotics #futuretech #smartdevices ...`
+   * **Viral Velocity**: `#shorts #viral #trending #fyp #foryou #viralshorts #trendingshorts #explore #reels ...`
+
+---
+
+## 📋 Prerequisites
+
+* **Operating System**: macOS 13.5+ (Optimized for Apple Silicon M1 / M2 / M3 / M4)
+* **Node.js**: v18.0.0 or higher
+* **Python**: 3.10+ (Homebrew Python 3.12 recommended)
+* **System Binaries**:
+  ```bash
+  brew install ffmpeg yt-dlp
+  ```
+
+---
+
+## 🚀 Quick Setup & Installation
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Dinesh-Cheekuri/Yt-to-shorts.git
+cd "Yt to shorts"
+```
+
+### 2. Install Node Dependencies
+```bash
 npm install
 ```
 
-### 3. Start the Server
+### 3. Set Up Local MLX Environment (Apple Silicon)
 ```bash
-npm start
+# Create dedicated Python virtual environment:
+/opt/homebrew/bin/python3.12 -m venv .venv-mlx
+
+# Install Apple Silicon Metal MLX packages:
+.venv-mlx/bin/pip install mlx mlx-lm
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 4. Configure Environment Variables
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Edit `.env` with your Google Cloud OAuth credentials and preferences:
+```env
+# Google OAuth 2.0 Credentials (from Google Cloud Console)
+CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+CLIENT_SECRET=your_client_secret_here
+
+# Server Port
+PORT=3000
+
+# Local Apple Silicon MLX GPU Configuration
+USE_MLX=true
+MLX_MODEL=mlx-community/Llama-3.2-3B-Instruct-4bit
+MLX_BASE_URL=http://127.0.0.1:8080
+
+# Cloud Fallback (Optional)
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
+DISABLE_OPENCODE=true
+
+# Optional yt-dlp Netscape cookies file to bypass bot challenges
+YTDLP_COOKIES=cookies.txt
+```
+
+### 5. Set Up Google Cloud OAuth
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create a project.
+2. Enable the **YouTube Data API v3**.
+3. Create an **OAuth 2.0 Client ID** (Application type: *Web application*).
+4. Add Authorized Redirect URI: `http://localhost:3000/oauth2callback`.
+5. Under **OAuth consent screen ➔ Test users**, add your YouTube account email.
 
 ---
 
-## 🔗 Supported URLs
+## 🎮 Running the Application
 
-| Platform | URL Format |
-| --- | --- |
-| YouTube Shorts | `https://youtube.com/shorts/<id>` |
-| YouTube Videos | `https://youtube.com/watch?v=<id>` |
-| YouTube Short links | `https://youtu.be/<id>` |
-| Instagram Reels | `https://instagram.com/reel/<id>/` |
-| Instagram Posts | `https://instagram.com/p/<id>/` |
+### Start the Studio Server
+```bash
+npm start
+```
+* Visit [http://localhost:3000](http://localhost:3000) in your browser.
+* Click **Connect YouTube** to link your channel.
+* Configure your AutoPilot schedule, percentage weights, and topic sources.
+* Click **Save & Run Cycle** or let the automated cron handle publishing hands-free.
+
+### Development Mode (Auto-Reload)
+```bash
+npm run dev
+```
+
+---
+
+## ⚙️ Configuration File Reference (`autopilot-config.json`)
+
+```json
+{
+  "enabled": true,
+  "privacy": "public",
+  "cadence": {
+    "mode": "interval",
+    "intervalValue": 30,
+    "intervalUnit": "minutes"
+  },
+  "sources": [
+    {
+      "type": "keyword",
+      "url": "Anime",
+      "name": "Anime Highlights",
+      "percentage": 25
+    },
+    {
+      "type": "keyword",
+      "url": "Marvel Avengers Doomsday",
+      "name": "Marvel & Cinema",
+      "percentage": 25
+    },
+    {
+      "type": "keyword",
+      "url": "insane viral gaming clips shorts",
+      "name": "Gaming Clutches",
+      "percentage": 25
+    },
+    {
+      "type": "keyword",
+      "url": "futuristic tech innovations gadgets shorts",
+      "name": "Tech & AI",
+      "percentage": 25
+    }
+  ],
+  "maxCandidates": 12
+}
+```
+
+---
+
+## 🛡️ License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

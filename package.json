@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "mlx:start": ".venv-mlx/bin/python -m mlx_lm server --model mlx-community/Llama-3.2-3B-Instruct-4bit --port 8080"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

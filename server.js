@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Auto-Pilot Modules ──────────────────────────────────────────────────
-const { getConfig, saveConfig, getHistory } = require('./lib/store');
+const { getConfig, saveConfig, getHistory, isAlreadyUploaded, addToHistory } = require('./lib/store');
 const { runAutoPilotCycle, setupScheduler, getRecentLogs, isBusy } = require('./lib/autopilot');
 const { rewriteSingleVideoMetadata, normalizeModelName } = require('./lib/aiEngine');
 const { listFreeModels } = require('./lib/aiClient');
@@ -317,7 +317,11 @@ async function uploadToYouTube(filePath, metadata, onProgress) {
   }, {
     onUploadProgress: (evt) => {
       const pct = Math.round((evt.bytesRead / fileSize) * 100);
-      onProgress?.(`Uploading to YouTube: ${pct}%`);
+      if (pct >= 100) {
+        onProgress?.('Uploading to YouTube: 100% (Finalizing upload on YouTube servers, awaiting confirmation...)');
+      } else {
+        onProgress?.(`Uploading to YouTube: ${pct}%`);
+      }
     },
   });
 
@@ -364,6 +368,12 @@ app.get('/api/upload', async (req, res) => {
   }
   if (!oauth2Client.credentials?.access_token) {
     sendEvent('error', { message: 'Not authenticated. Please connect your YouTube account first.' });
+    return res.end();
+  }
+
+  // Duplicate upload check
+  if (isAlreadyUploaded(url)) {
+    sendEvent('error', { message: 'This video has already been uploaded previously. Skipping duplicate upload.' });
     return res.end();
   }
 
@@ -445,6 +455,19 @@ app.get('/api/upload', async (req, res) => {
     // Step 3: Upload to YouTube
     const result = await uploadToYouTube(finalShortPath, uploadMetadata, (msg) => {
       sendEvent('progress', { message: msg });
+    });
+
+    // Record manual upload in history to prevent duplicates
+    addToHistory({
+      id: metadata.id || url,
+      sourceUrl: url,
+      sourceTitle: metadata.title,
+      uploader: metadata.uploader,
+      newVideoId: result.videoId,
+      newVideoUrl: result.url,
+      newTitle: result.title,
+      status: 'uploaded',
+      privacy
     });
 
     sendEvent('done', {
