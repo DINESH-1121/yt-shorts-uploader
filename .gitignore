@@ -8,3 +8,5 @@ trend-queries.json
 cookies.txt
 cookies*.txt
 .venv*
+.DS_Store
+

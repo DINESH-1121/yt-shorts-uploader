@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "mlx:start": ".venv-mlx/bin/python -m mlx_lm server --model mlx-community/Llama-3.2-3B-Instruct-4bit --port 8080"
+    "mlx:start": ".venv-mlx/bin/python -m mlx_lm server --model mlx-community/Qwen3.5-9B-MLX-4bit --port 8080 --chat-template-args '{\"enable_thinking\":false}'",
+    "mlx:chat": ".venv-mlx/bin/python -m mlx_lm chat --model mlx-community/Qwen3.5-9B-MLX-4bit"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
